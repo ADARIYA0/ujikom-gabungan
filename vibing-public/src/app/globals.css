@@ -1,0 +1,468 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+  --background: #fefffe;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0d9488;
+  --primary-foreground: #ffffff;
+  --secondary: #f8fafc;
+  --secondary-foreground: #475569;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f3f4f6;
+  --accent-foreground: #374151;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #059669;
+  --success-foreground: #ffffff;
+  --warning: #d97706;
+  --warning-foreground: #ffffff;
+  --info: #0369a1;
+  --info-foreground: #ffffff;
+  --coral: #ff6b6b;
+  --coral-foreground: #ffffff;
+  --navy: #1e293b;
+  --navy-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: transparent;
+  --input-background: #f8fafc;
+  --switch-background: #cbd5e1;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: #0d9488;
+  --chart-1: #0d9488;
+  --chart-2: #0369a1;
+  --chart-3: #ff6b6b;
+  --chart-4: #059669;
+  --chart-5: #d97706;
+  --radius: 0.75rem;
+  --sidebar: #f8fafc;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #0d9488;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #475569;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #0d9488;
+}
+
+.dark {
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --card: #1e293b;
+  --card-foreground: #f8fafc;
+  --popover: #1e293b;
+  --popover-foreground: #f8fafc;
+  --primary: #14b8a6;
+  --primary-foreground: #ffffff;
+  --secondary: #334155;
+  --secondary-foreground: #cbd5e1;
+  --muted: #334155;
+  --muted-foreground: #94a3b8;
+  --accent: #475569;
+  --accent-foreground: #e2e8f0;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #334155;
+  --input: #334155;
+  --ring: #14b8a6;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --chart-1: #14b8a6;
+  --chart-2: #0369a1;
+  --chart-3: #ff6b6b;
+  --chart-4: #059669;
+  --chart-5: #d97706;
+  --sidebar: #1e293b;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #14b8a6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #334155;
+  --sidebar-accent-foreground: #cbd5e1;
+  --sidebar-border: #334155;
+  --sidebar-ring: #14b8a6;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-coral: var(--coral);
+  --color-coral-foreground: var(--coral-foreground);
+  --color-navy: var(--navy);
+  --color-navy-foreground: var(--navy-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: var(--font-space-grotesk);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-space-grotesk), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-feature-settings: 'kern', 'liga', 'ss01';
+  }
+
+  code, pre {
+    font-family: var(--font-jetbrains-mono), 'Fira Code', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  }
+}
+
+@layer base {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      line-height: 1.2;
+      letter-spacing: -0.025em;
+    }
+
+    h2 {
+      font-size: 1.875rem;
+      font-weight: 700;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+    }
+
+    h3 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+    }
+
+    h4 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    p {
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.6;
+    }
+
+    label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    button {
+      font-size: 0.875rem;
+      font-weight: 500;
+      line-height: 1.4;
+    }
+
+    input {
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.4;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
+
+@layer utilities {
+  .shadow-soft {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  }
+  
+  .shadow-medium {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+
+  .shadow-large {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+
+  .shadow-xl-colored {
+    box-shadow: 0 20px 25px -5px rgba(13, 148, 136, 0.15), 0 10px 10px -5px rgba(13, 148, 136, 0.05);
+  }
+
+  /* Infinite marquee animation - Responsive */
+  @keyframes marquee {
+    0% {
+      transform: translateX(0%);
+    }
+    100% {
+      transform: translateX(-100%);
+    }
+  }
+
+  .animate-marquee {
+    animation: marquee 25s linear infinite;
+  }
+
+  /* Responsive marquee speeds for different screen sizes */
+  @media (max-width: 640px) {
+    .animate-marquee {
+      animation: marquee 20s linear infinite;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .animate-marquee {
+      animation: marquee 30s linear infinite;
+    }
+  }
+
+
+  /* Responsive container utilities */
+  .hero-container {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  /* Smooth transitions for all interactive elements */
+  .card-hover-transition {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-hover-transition:hover {
+    transform: scale(1.05) translateY(-2px);
+  }
+
+  /* Prevent horizontal scroll on mobile */
+  @media (max-width: 768px) {
+    body {
+      overflow-x: hidden;
+    }
+    
+    .hero-container {
+      padding-left: 0.5rem;
+      padding-right: 0.5rem;
+    }
+  }
+
+  /* Custom height utilities for larger cards */
+  .h-68 {
+    height: 17rem; /* 272px */
+  }
+
+  .h-76 {
+    height: 19rem; /* 304px */
+  }
+
+  /* Enhanced responsive card scaling with unlimited zoom support - More aggressive scaling */
+  .hero-cards-container {
+    transform-origin: center center;
+    will-change: transform;
+    transition: transform 0.15s ease-out;
+    /* More aggressive scaling for full screen coverage */
+    scale: calc(0.6 + 1.8 * (100vw / 1920px));
+  }
+
+  /* Responsive scaling for different screen sizes with unlimited zoom range - More aggressive */
+  
+  /* Small Desktop - 1366x768, 1280x720 */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .hero-cards-container {
+      scale: calc(0.7 + 1.6 * (100vw / 1024px));
+    }
+  }
+
+  /* Medium Desktop - 1440x900, 1024x768 */
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    .hero-cards-container {
+      scale: calc(0.65 + 1.7 * (100vw / 1280px));
+    }
+  }
+
+  /* Large Desktop - 1920x1080, 1680x1050 */
+  @media (min-width: 1280px) and (max-width: 1535px) {
+    .hero-cards-container {
+      scale: calc(0.6 + 1.8 * (100vw / 1536px));
+    }
+  }
+
+  /* Extra Large Desktop - 1920x1080+, 2560x1440 */
+  @media (min-width: 1536px) and (max-width: 1919px) {
+    .hero-cards-container {
+      scale: calc(0.55 + 1.9 * (100vw / 1920px));
+    }
+  }
+
+  /* Ultra Wide & 4K - 2560x1440, 3840x2160 */
+  @media (min-width: 1920px) and (max-width: 2559px) {
+    .hero-cards-container {
+      scale: calc(0.5 + 2.0 * (100vw / 2560px));
+    }
+  }
+
+  /* 4K+ Ultra High Resolution */
+  @media (min-width: 2560px) {
+    .hero-cards-container {
+      scale: calc(0.45 + 2.2 * (100vw / 3840px));
+    }
+  }
+
+  /* VIBE Section separator with fade away effect */
+  .vibe-separator::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 1px;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 10%,
+      #4b5563 20%,
+      #4b5563 80%,
+      transparent 90%,
+      transparent 100%
+    );
+    z-index: 10;
+  }
+
+  /* Tablet layout separators (2x2 grid) */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    /* Top row - right separator only for first column */
+    .vibe-separator-tablet::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 1px;
+      background: linear-gradient(
+        to bottom,
+        transparent 0%,
+        transparent 10%,
+        #4b5563 20%,
+        #4b5563 80%,
+        transparent 90%,
+        transparent 100%
+      );
+      z-index: 10;
+    }
+
+    /* Top row - no right separator for second column */
+    .vibe-separator-tablet-right::after {
+      display: none;
+    }
+
+    /* Bottom row - right separator only for first column */
+    .vibe-separator-tablet-bottom::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 1px;
+      background: linear-gradient(
+        to bottom,
+        transparent 0%,
+        transparent 10%,
+        #4b5563 20%,
+        #4b5563 80%,
+        transparent 90%,
+        transparent 100%
+      );
+      z-index: 10;
+    }
+
+    /* Add horizontal separator between rows */
+    .vibe-separator-tablet::before,
+    .vibe-separator-tablet-right::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(
+        to right,
+        transparent 0%,
+        transparent 10%,
+        #4b5563 20%,
+        #4b5563 80%,
+        transparent 90%,
+        transparent 100%
+      );
+      z-index: 10;
+    }
+  }
+
+  /* Extreme zoom support - additional scaling for very small viewports */
+  @media (max-width: 600px) {
+    .hero-cards-container {
+      scale: calc(0.8 + 0.8 * (100vw / 600px)) !important;
+    }
+  }
+
+  /* Full width container optimization for zoom out */
+  .hero-cards-container {
+    width: 100%;
+    max-width: none;
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  /* Prevent horizontal overflow at extreme zoom levels */
+  @media (max-width: 800px) {
+    .hero-cards-container {
+      justify-content: center !important;
+      padding: 0 0.5rem;
+    }
+  }
+}
