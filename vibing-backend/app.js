@@ -1,6 +1,7 @@
 const { corsOptions } = require('./src/config/corsOption');
 const adminRoute = require('./src/routes/adminRoute');
 const authRoute = require('./src/routes/authRoute');
+const categoryRoute = require('./src/routes/categoryRoute');
 const cookieParser = require('cookie-parser');
 const cors = require("cors");
 const eventRoute = require('./src/routes/eventRoute');
@@ -15,6 +16,7 @@ app.use(express.json());
 
 app.use('/api/auth', authRoute);
 app.use('/api/auth/admin', adminRoute);
+app.use('/api/category', categoryRoute);
 app.use('/api/event', eventRoute)
 
 app.get('/status', (req, res) => {

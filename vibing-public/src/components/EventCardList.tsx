@@ -13,11 +13,12 @@ interface EventCardListProps {
     event: Event;
     onViewDetails: (eventSlug: string) => void;
     onRegister: (eventId: number) => void;
+    onCheckIn?: (eventId: number) => void;
     isLoggedIn: boolean;
     fromPage?: 'home' | 'event';
 }
 
-export function EventCardList({ event, onViewDetails, onRegister, isLoggedIn, fromPage = 'home' }: EventCardListProps) {
+export function EventCardList({ event, onViewDetails, onRegister, onCheckIn, isLoggedIn, fromPage = 'home' }: EventCardListProps) {
     const router = useRouter();
 
     const handleViewDetails = () => {
@@ -26,6 +27,9 @@ export function EventCardList({ event, onViewDetails, onRegister, isLoggedIn, fr
 
     const isEventFull = EventService.isEventFull(event);
     const isEventPassed = EventService.isEventPassed(event);
+    const isEventStarted = EventService.isEventStarted(event);
+    const isRegistered = event.is_registered || false;
+    const attendanceStatus = event.attendance_status;
     const categoryName = event.kategori?.nama_kategori || 'Umum';
 
     return (
@@ -35,7 +39,7 @@ export function EventCardList({ event, onViewDetails, onRegister, isLoggedIn, fr
                     {/* Image Section */}
                     <div className="relative md:w-80 md:flex-shrink-0">
                         <Image
-                            src={EventService.getImageUrl(event.gambar_kegiatan)}
+                            src={EventService.getImageUrl(event.flyer_kegiatan || event.gambar_kegiatan)}
                             alt={event.judul_kegiatan}
                             width={320}
                             height={200}
@@ -106,13 +110,24 @@ export function EventCardList({ event, onViewDetails, onRegister, isLoggedIn, fr
                                     Detail
                                 </Button>
                                 {isLoggedIn ? (
-                                    <Button
-                                        onClick={() => onRegister(event.id)}
-                                        disabled={isEventFull || isEventPassed}
-                                        className="h-10 px-6 bg-primary hover:bg-teal-700 text-white disabled:bg-gray-300 disabled:text-gray-500 transition-colors font-semibold"
-                                    >
-                                        {isEventPassed ? 'Sudah Lewat' : isEventFull ? 'Penuh' : 'Daftar'}
-                                    </Button>
+                                    isRegistered ? (
+                                        <Button
+                                            onClick={() => onCheckIn ? onCheckIn(event.id) : onViewDetails(event.slug)}
+                                            disabled={attendanceStatus === 'hadir' || isEventPassed || !isEventStarted}
+                                            className="h-10 px-6 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-gray-300 disabled:text-gray-500 transition-colors font-semibold"
+                                            title={!isEventStarted ? `Check-in dapat dilakukan mulai ${EventService.formatEventStartTime(event)} WIB` : undefined}
+                                        >
+                                            {attendanceStatus === 'hadir' ? 'Sudah Hadir' : isEventPassed ? 'Sudah Lewat' : !isEventStarted ? 'Belum Waktunya' : 'Isi Data Kehadiran'}
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            onClick={() => onRegister(event.id)}
+                                            disabled={isEventFull || isEventPassed}
+                                            className="h-10 px-6 bg-primary hover:bg-teal-700 text-white disabled:bg-gray-300 disabled:text-gray-500 transition-colors font-semibold"
+                                        >
+                                            {isEventPassed ? 'Sudah Lewat' : isEventFull ? 'Penuh' : 'Daftar'}
+                                        </Button>
+                                    )
                                 ) : (
                                     <Button
                                         onClick={() => onViewDetails(event.slug)}

@@ -19,6 +19,8 @@ export interface Event {
   kategori: EventCategory | null;
   attendee_count: number;
   is_full: boolean;
+  is_registered?: boolean;
+  attendance_status?: 'hadir' | 'tidak-hadir' | null;
 }
 
 export interface EventsResponse {

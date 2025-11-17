@@ -6,9 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { apiRequest, getErrorMessage } from '@/utils/globalErrorHandler';
 
-type ResetStep = 'email' | 'new-password';
+type ResetStep = 'email' | 'verify-otp' | 'new-password';
 
-// Helper function to format OTP error messages with attempt count
 const getResetOTPErrorMessage = (errorMessage: string, backendData?: any): string => {
     if (errorMessage === 'Invalid OTP') {
         if (backendData && backendData.remainingAttempts !== undefined) {
@@ -28,13 +27,11 @@ const getResetOTPErrorMessage = (errorMessage: string, backendData?: any): strin
     if (errorMessage.includes('Too many invalid OTP attempts')) {
         const match = errorMessage.match(/Try again in (\d+) minute\(s\)/);
         if (match) {
-            const minutes = match[1];
-            return `Anda telah memasukkan kode OTP yang salah terlalu banyak. Silakan coba lagi dalam ${minutes} menit.`;
+            return `Anda telah memasukkan kode OTP yang salah terlalu banyak. Silakan coba lagi dalam beberapa menit.`;
         }
         return 'Anda telah memasukkan kode OTP yang salah terlalu banyak. Silakan coba lagi nanti.';
     }
     
-    // Return original message for other errors
     return errorMessage;
 };
 
@@ -54,53 +51,162 @@ function ResetPasswordContent() {
     const [countdown, setCountdown] = useState(0);
     const [hasSubmitted, setHasSubmitted] = useState(false);
     const [emailError, setEmailError] = useState('');
+    const [isLocked, setIsLocked] = useState(false);
+    const [lockCountdown, setLockCountdown] = useState(0);
+    const [attemptCount, setAttemptCount] = useState(0);
+    const [maxAttempts] = useState(3);
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-    // Initialize step and email from URL parameters
+    const checkPasswordResetRequestStatus = async (email: string) => {
+        try {
+            const result = await apiRequest(`${process.env.NEXT_PUBLIC_API_KEY}/auth/check-password-reset-request-status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email }),
+            });
+
+            if (result.success && result.data) {
+                return result.data.hasActiveRequest;
+            }
+
+            return false;
+        } catch (error) {
+            return false;
+        }
+    };
+
+    const checkPasswordResetLockStatus = async (email: string) => {
+        try {
+            const result = await apiRequest(`${process.env.NEXT_PUBLIC_API_KEY}/auth/check-password-reset-lock-status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email }),
+            });
+
+            if (result.success && result.data) {
+                const lockData = result.data;
+
+                if (lockData.isLocked) {
+                    setIsLocked(true);
+                    setLockCountdown(lockData.remainingSeconds || 0);
+
+                    if (lockData.lockType === 'password_reset_verify') {
+                        setError(`Anda telah memasukkan kode OTP yang salah terlalu banyak. Silakan coba lagi dalam beberapa menit.`);
+                        setAttemptCount(3);
+                    }
+
+                    return true;
+                } else {
+                    setAttemptCount(lockData.attemptCount || 0);
+                    return false;
+                }
+            }
+
+            return false;
+        } catch (error) {
+            return false;
+        }
+    };
+
     useEffect(() => {
         const emailParam = searchParams.get('email');
-        const stepParam = searchParams.get('step') as ResetStep;
+        const stepParam = searchParams.get('step');
         const fromEmail = searchParams.get('from');
         
         if (emailParam) {
             const decodedEmail = decodeURIComponent(emailParam);
             setEmail(decodedEmail);
             
-            if (stepParam === 'new-password') {
-                setStep(stepParam);
-                
-                // Show success message when coming from email step to new-password
-                if (stepParam === 'new-password' && fromEmail === 'email') {
-                    const messageShownKey = `reset_message_shown_${decodedEmail}`;
-                    const messageAlreadyShown = sessionStorage.getItem(messageShownKey);
-                    
-                    if (!messageAlreadyShown) {
-                        setSuccess('Kode verifikasi telah dikirim ke email Anda. Silakan masukkan kode OTP dan password baru.');
-                        setCountdown(60);
-                        
-                        // Mark message as shown and remove URL parameter
-                        sessionStorage.setItem(messageShownKey, 'true');
-                        const newUrl = new URL(window.location.href);
-                        newUrl.searchParams.delete('from');
-                        window.history.replaceState({}, '', newUrl.toString());
+            if (stepParam === 'verify-otp') {
+                checkPasswordResetRequestStatus(decodedEmail).then((hasActiveRequest) => {
+                    if (!hasActiveRequest) {
+                        setIsValidAccess(false);
+                        return;
                     }
-                }
+                    
+                    setIsValidAccess(true);
+                    setStep(stepParam);
+                    
+                    checkPasswordResetLockStatus(decodedEmail).then((isUserLocked) => {
+                        if (!isUserLocked) {
+                            if (fromEmail === 'email') {
+                                setSuccess('Kode OTP telah dikirim ke email Anda. Silakan periksa kotak masuk Anda.');
+                                setCountdown(60);
+                                
+                                const newUrl = new URL(window.location.href);
+                                newUrl.searchParams.delete('from');
+                                window.history.replaceState({}, '', newUrl.toString());
+                            } else {
+                                const messageShownKey = `reset_message_shown_${decodedEmail}`;
+                                const messageAlreadyShown = sessionStorage.getItem(messageShownKey);
+                                
+                                if (!messageAlreadyShown) {
+                                    setSuccess('Kode OTP telah dikirim ke email Anda. Silakan periksa kotak masuk Anda.');
+                                    setCountdown(60);
+                                    sessionStorage.setItem(messageShownKey, 'true');
+                                }
+                            }
+                        }
+                    });
+                });
+            } else if (stepParam === 'new-password') {
+                checkPasswordResetRequestStatus(decodedEmail).then((hasActiveRequest) => {
+                    if (!hasActiveRequest) {
+                        setIsValidAccess(false);
+                        return;
+                    }
+                    
+                    setIsValidAccess(true);
+                    setStep(stepParam);
+                    
+                    if (stepParam === 'new-password' && fromEmail === 'verify-otp') {
+                        const messageShownKey = `otp_verified_message_shown_${decodedEmail}`;
+                        const messageAlreadyShown = sessionStorage.getItem(messageShownKey);
+                        
+                        if (!messageAlreadyShown) {
+                            setSuccess('Kode OTP berhasil diverifikasi! Silakan masukkan password baru Anda.');
+                            
+                            sessionStorage.setItem(messageShownKey, 'true');
+                            const newUrl = new URL(window.location.href);
+                            newUrl.searchParams.delete('from');
+                            window.history.replaceState({}, '', newUrl.toString());
+                        }
+                    }
+                });
             } else {
-                setStep('new-password'); // Default to new-password if email is present
+                setStep('verify-otp'); 
             }
         } else {
-            setStep('email'); // Default to email step if no email in URL
+            setStep('email'); 
         }
     }, [searchParams]);
 
-
-    // Countdown timer for resend OTP
     useEffect(() => {
         if (countdown > 0) {
             const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
             return () => clearTimeout(timer);
         }
     }, [countdown]);
+
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (lockCountdown > 0) {
+            timer = setTimeout(() => {
+                setLockCountdown(lockCountdown - 1);
+                if (lockCountdown === 1) {
+                    setIsLocked(false);
+                    setAttemptCount(0);
+                    setError('');
+                    setSuccess('Akun Anda sudah dapat digunakan kembali. Silakan coba verifikasi lagi.');
+                }
+            }, 1000);
+        }
+        return () => clearTimeout(timer);
+    }, [lockCountdown]);
 
     const validateEmail = (email: string) => {
         if (!email) {
@@ -121,11 +227,9 @@ function ResetPasswordContent() {
     };
 
     const handleBack = () => {
-        // Clear error and success messages when navigating back
         setError('');
         setSuccess('');
 
-        // Always navigate to login page from any step
         router.push('/login');
     };
 
@@ -154,9 +258,8 @@ function ResetPasswordContent() {
             });
 
             if (result.success) {
-                // Redirect to new-password step with email parameter and from=email
-                router.push(`/reset-password?email=${encodeURIComponent(email)}&step=new-password&from=email`);
-                return; // Don't set isSubmitting to false on success
+                router.push(`/reset-password?email=${encodeURIComponent(email)}&step=verify-otp&from=email`);
+                return;
             } else {
                 setError(getErrorMessage(result.error));
             }
@@ -170,7 +273,9 @@ function ResetPasswordContent() {
     const handleResendOTP = async () => {
         if (countdown > 0) return;
 
-        setError('');
+        if (!isLocked) {
+            setError('');
+        }
         setSuccess('');
         setIsSubmitting(true);
 
@@ -184,10 +289,13 @@ function ResetPasswordContent() {
             });
 
             if (result.success) {
-                // Reset OTP fields and countdown without showing success message
+                setSuccess('Kode OTP baru telah dikirim ke email Anda.');
                 setCountdown(60);
                 setOtp(['', '', '', '', '', '']);
-                inputRefs.current[0]?.focus();
+                if (!isLocked) {
+                    setAttemptCount(0);
+                    inputRefs.current[0]?.focus();
+                }
             } else {
                 setError(getErrorMessage(result.error));
             }
@@ -235,6 +343,91 @@ function ResetPasswordContent() {
         inputRefs.current[nextIndex]?.focus();
     };
 
+    const handleVerifyOTP = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+
+        if (isLocked) {
+            return;
+        }
+
+        setError('');
+        setSuccess('');
+        setIsSubmitting(true);
+
+        const otpString = otp.join('');
+        if (otpString.length !== 6) {
+            setError('Silakan masukkan kode OTP 6 digit.');
+            setIsSubmitting(false);
+            return;
+        }
+
+        try {
+            const result = await apiRequest(`${process.env.NEXT_PUBLIC_API_KEY}/auth/verify-password-reset-otp`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email,
+                    otp: otpString,
+                }),
+            });
+
+            if (result.success) {
+                router.push(`/reset-password?email=${encodeURIComponent(email)}&step=new-password&from=verify-otp`);
+                return;
+            } else {
+                const errorMsg = result.error || 'Unknown error';
+                
+                if (errorMsg.includes('Too many invalid OTP attempts')) {
+                    const match = errorMsg.match(/Try again in (\d+) minute\(s\)/);
+                    const remainingMinutes = match ? parseInt(match[1]) : 5;
+                    const totalSeconds = remainingMinutes * 60;
+                    setIsLocked(true);
+                    setLockCountdown(totalSeconds);
+                    
+                    setError(`Anda telah memasukkan kode OTP yang salah terlalu banyak. Silakan coba lagi dalam beberapa menit.`);
+                } else if (errorMsg === 'Invalid OTP') {
+                    if (result.data && result.data.attemptCount !== undefined) {
+                        const currentAttempts = result.data.attemptCount;
+                        const remainingAttempts = result.data.remainingAttempts;
+
+                        setAttemptCount(currentAttempts);
+
+                        if (remainingAttempts === 0) {
+                            const totalSeconds = 5 * 60;
+                            setIsLocked(true);
+                            setLockCountdown(totalSeconds);
+                            
+                            setError(`Anda telah memasukkan kode OTP yang salah terlalu banyak. Silakan coba lagi dalam beberapa menit.`);
+                        } else {
+                            setError(getResetOTPErrorMessage(errorMsg, result.data));
+                        }
+                    } else {
+                        const newAttemptCount = attemptCount + 1;
+                        setAttemptCount(newAttemptCount);
+
+                        if (newAttemptCount >= maxAttempts) {
+                            const totalSeconds = 5 * 60;
+                            setIsLocked(true);
+                            setLockCountdown(totalSeconds);
+                            
+                            setError(`Anda telah memasukkan kode OTP yang salah terlalu banyak. Silakan coba lagi dalam beberapa menit.`);
+                        } else {
+                            setError(getResetOTPErrorMessage(errorMsg, { remainingAttempts: maxAttempts - newAttemptCount }));
+                        }
+                    }
+                } else {
+                    setError(getResetOTPErrorMessage(errorMsg, result.data));
+                }
+            }
+        } catch (error) {
+            setError('Terjadi kesalahan yang tidak terduga. Silakan coba lagi.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
 
     const handleResetPassword = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -267,7 +460,6 @@ function ResetPasswordContent() {
                 },
                 body: JSON.stringify({
                     email,
-                    otp: otp.join(''),
                     newPassword,
                 }),
             });
@@ -278,7 +470,6 @@ function ResetPasswordContent() {
                     router.push('/login');
                 }, 2000);
             } else {
-                // Use custom error message handler for OTP errors in reset password
                 const errorMsg = result.error || 'Unknown error';
                 setError(getResetOTPErrorMessage(errorMsg, result.data));
             }
@@ -288,6 +479,119 @@ function ResetPasswordContent() {
             setIsSubmitting(false);
         }
     };
+
+    const renderVerifyOTPStep = () => (
+        <div className="w-full max-w-md px-4 sm:px-6 py-6 sm:py-8 bg-background rounded-lg shadow-sm border border-border/10">
+            <div className="w-full flex flex-col justify-center">
+                <div className="max-w-md mx-auto w-full">
+                    <div className="mb-8">
+                        <h1 className="text-3xl font-bold mb-2 text-foreground">Verifikasi OTP</h1>
+                        <p className="text-sm text-muted-foreground mb-2">
+                            Kami telah mengirimkan kode OTP 6 digit ke email{" "}
+                            <span className="font-medium text-primary">{email}</span>. Silakan masukkan kode tersebut untuk melanjutkan proses reset password.
+                        </p>
+                        {error && (
+                            <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200">
+                                <p className="text-sm text-red-600">{error}</p>
+                            </div>
+                        )}
+                        {success && (
+                            <div className="mt-4 p-3 rounded-lg bg-green-50 border border-green-200">
+                                <p className="text-sm text-green-600">{success}</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <form className="space-y-4" onSubmit={handleVerifyOTP}>
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-foreground">Email</label>
+                            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                                <p className="text-sm text-yellow-800">{email}</p>
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-foreground">Kode OTP</label>
+                            <div className="flex gap-2 justify-center">
+                                {otp.map((digit, index) => (
+                                    <Input
+                                        key={index}
+                                        ref={(el) => { inputRefs.current[index] = el; }}
+                                        type="text"
+                                        inputMode="numeric"
+                                        maxLength={1}
+                                        value={digit}
+                                        onChange={(e) => handleOTPChange(index, e.target.value)}
+                                        onKeyDown={(e) => handleOTPKeyDown(index, e)}
+                                        onPaste={handleOTPPaste}
+                                        disabled={isSubmitting || isLocked}
+                                        className="w-12 h-12 text-center text-xl font-semibold"
+                                        autoComplete="one-time-code"
+                                    />
+                                ))}
+                            </div>
+                            <p className="text-xs text-muted-foreground text-center">
+                                Masukkan 6 digit kode yang dikirim ke email Anda
+                            </p>
+                        </div>
+
+                        <Button
+                            type="submit"
+                            className="w-full font-medium cursor-pointer"
+                            disabled={isSubmitting || otp.join('').length !== 6 || isLocked}
+                        >
+                            {isLocked ? (
+                                <>
+                                    Terkunci ({Math.floor(lockCountdown / 60)}:{(lockCountdown % 60).toString().padStart(2, '0')})
+                                </>
+                            ) : isSubmitting ? (
+                                <svg
+                                    className="animate-spin h-5 w-5 text-white"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                    ></circle>
+                                    <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                    ></path>
+                                </svg>
+                            ) : (
+                                'Verifikasi OTP'
+                            )}
+                        </Button>
+                    </form>
+
+                    <div className="mt-6 text-center">
+                        <p className="text-sm text-muted-foreground mb-2">
+                            Tidak menerima kode?
+                        </p>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={handleResendOTP}
+                            disabled={countdown > 0 || isSubmitting}
+                            className="text-primary hover:text-primary/90 disabled:text-muted-foreground disabled:no-underline cursor-pointer disabled:cursor-not-allowed"
+                        >
+                            {countdown > 0 ?
+                                `Kirim ulang OTP (${countdown}s)` :
+                                'Kirim ulang OTP'
+                            }
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 
     const renderEmailStep = () => (
         <div className="w-full max-w-md px-4 sm:px-6 py-6 sm:py-8 bg-background rounded-lg shadow-sm border border-border/10">
@@ -368,10 +672,10 @@ function ResetPasswordContent() {
             <div className="w-full flex flex-col justify-center">
                 <div className="max-w-md mx-auto w-full">
                     <div className="mb-8">
-                        <h1 className="text-3xl font-bold mb-2 text-foreground">Reset Password</h1>
+                        <h1 className="text-3xl font-bold mb-2 text-foreground">Buat Password Baru</h1>
                         <p className="text-sm text-muted-foreground mb-2">
-                            Masukkan kode OTP yang telah dikirim ke email{" "}
-                            <span className="font-medium text-primary">{email}</span> dan password baru Anda.
+                            Masukkan password baru untuk akun{" "}
+                            <span className="font-medium text-primary">{email}</span>.
                         </p>
                         {error && (
                             <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200">
@@ -386,30 +690,6 @@ function ResetPasswordContent() {
                     </div>
 
                     <form className="space-y-4" onSubmit={handleResetPassword}>
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-foreground">Kode OTP</label>
-                            <div className="flex gap-2 justify-center">
-                                {otp.map((digit, index) => (
-                                    <Input
-                                        key={index}
-                                        ref={(el) => { inputRefs.current[index] = el; }}
-                                        type="text"
-                                        inputMode="numeric"
-                                        maxLength={1}
-                                        value={digit}
-                                        onChange={(e) => handleOTPChange(index, e.target.value)}
-                                        onKeyDown={(e) => handleOTPKeyDown(index, e)}
-                                        onPaste={handleOTPPaste}
-                                        disabled={isSubmitting}
-                                        className="w-12 h-12 text-center text-xl font-semibold"
-                                        autoComplete="one-time-code"
-                                    />
-                                ))}
-                            </div>
-                            <p className="text-xs text-muted-foreground text-center">
-                                Masukkan 6 digit kode yang dikirim ke email Anda
-                            </p>
-                        </div>
                         <div className="space-y-2">
                             <label htmlFor="new-password" className="block text-sm font-medium text-foreground">Kata Sandi Baru</label>
                             <div className="relative">
@@ -582,6 +862,23 @@ function ResetPasswordContent() {
         </div>
     );
 
+    if (isValidAccess === false) {
+        return <NotFound />;
+    }
+
+    if (isValidAccess === null && (step === 'verify-otp' || step === 'new-password')) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-background relative px-4 py-6">
+                <div className="flex items-center justify-center">
+                    <svg className="animate-spin h-8 w-8 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-background relative px-4 py-6">
             <div className="w-full max-w-md flex justify-start mb-4">
@@ -600,6 +897,7 @@ function ResetPasswordContent() {
             </div>
 
             {step === 'email' && renderEmailStep()}
+            {step === 'verify-otp' && renderVerifyOTPStep()}
             {step === 'new-password' && renderNewPasswordStep()}
 
             <div className="mt-6 sm:mt-8 text-center text-xs text-muted-foreground px-4">

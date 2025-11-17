@@ -51,16 +51,8 @@ module.exports = new EntitySchema({
             type: 'datetime',
             nullable: true
         },
-        otp_resend_count: {
-            type: 'int',
-            default: 0,
-            nullable: false
-        },
+        
         otp_last_sent_at: {
-            type: 'datetime',
-            nullable: true
-        },
-        otp_locked_until: {
             type: 'datetime',
             nullable: true
         },
@@ -73,12 +65,25 @@ module.exports = new EntitySchema({
             type: 'datetime',
             nullable: true
         },
+        otp_resend_count: {
+            type: 'int',
+            default: 0,
+            nullable: false
+        },
+        otp_locked_until: {
+            type: 'datetime',
+            nullable: true
+        },
         password_reset_otp: {
             type: 'varchar',
             length: 255,
             nullable: true
         },
         password_reset_expiry: {
+            type: 'datetime',
+            nullable: true
+        },
+        password_reset_last_sent_at: {
             type: 'datetime',
             nullable: true
         },
@@ -95,10 +100,6 @@ module.exports = new EntitySchema({
             type: 'int',
             default: 0,
             nullable: false
-        },
-        password_reset_last_sent_at: {
-            type: 'datetime',
-            nullable: true
         },
         created_at: {
             type: 'datetime',

@@ -50,7 +50,12 @@ export class ApiClient {
             if (response.ok) {
                 return { success: true, data, message: data.message };
             } else {
-                if (response.status === 401 && accessToken) {
+                // Only refresh token for 401 errors that are NOT from check-in endpoint
+                // Check-in errors should show the actual validation error message
+                const isCheckInEndpoint = endpoint.includes('/checkin');
+                const isAuthError = response.status === 401 && accessToken && !isCheckInEndpoint;
+                
+                if (isAuthError) {
                     const refreshed = await this.refreshAccessToken();
                     if (refreshed) {
                         return this.request(endpoint, options);
@@ -60,10 +65,18 @@ export class ApiClient {
                     }
                 }
                 
-                // Use GlobalErrorHandler for error handling
+                // For check-in and other validation errors, return the actual error message
+                const errorMessage = data.message || response.statusText;
+                
+                // Use GlobalErrorHandler for error handling (but preserve original message for validation errors)
+                if (isCheckInEndpoint || response.status === 400 || response.status === 404) {
+                    // Return the actual validation error message
+                    return { success: false, error: errorMessage, message: errorMessage };
+                }
+                
                 const apiError = await GlobalErrorHandler.handleFetchError({
                     status: response.status,
-                    message: data.message || response.statusText
+                    message: errorMessage
                 }, url);
                 
                 return { success: false, error: apiError.message, message: data.message };

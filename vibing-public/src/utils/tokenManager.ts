@@ -9,25 +9,18 @@ export class TokenManager {
     private static readonly REMEMBER_ME_KEY = 'rememberMe';
     private static readonly USER_DATA_KEY = 'userData';
 
-    static setAccessToken(token: string, rememberMe: boolean = false): void {
+    static setAccessToken(token: string, rememberMe: boolean = true): void {
         if (typeof window === 'undefined') return; // SSR check
         
         const payload = this.decodeJWT(token);
         const expiresAt = payload?.exp ? payload.exp * 1000 : Date.now() + (15 * 60 * 1000);
 
-        if (rememberMe) {
-            localStorage.setItem(this.ACCESS_TOKEN_KEY, token);
-            localStorage.setItem(this.TOKEN_EXPIRY_KEY, expiresAt.toString());
-            localStorage.setItem(this.REMEMBER_ME_KEY, 'true');
-            sessionStorage.removeItem(this.ACCESS_TOKEN_KEY);
-            sessionStorage.removeItem(this.TOKEN_EXPIRY_KEY);
-        } else {
-            sessionStorage.setItem(this.ACCESS_TOKEN_KEY, token);
-            sessionStorage.setItem(this.TOKEN_EXPIRY_KEY, expiresAt.toString());
-            localStorage.removeItem(this.ACCESS_TOKEN_KEY);
-            localStorage.removeItem(this.TOKEN_EXPIRY_KEY);
-            localStorage.removeItem(this.REMEMBER_ME_KEY);
-        }
+        // Always use localStorage (rememberMe always true)
+        localStorage.setItem(this.ACCESS_TOKEN_KEY, token);
+        localStorage.setItem(this.TOKEN_EXPIRY_KEY, expiresAt.toString());
+        localStorage.setItem(this.REMEMBER_ME_KEY, 'true');
+        sessionStorage.removeItem(this.ACCESS_TOKEN_KEY);
+        sessionStorage.removeItem(this.TOKEN_EXPIRY_KEY);
     }
 
     static getAccessToken(): string | null {
@@ -52,21 +45,18 @@ export class TokenManager {
 
     static isRememberMe(): boolean {
         if (typeof window === 'undefined') return false; // SSR check
-        return localStorage.getItem(this.REMEMBER_ME_KEY) === 'true';
+        // Always return true since we always use localStorage now
+        return true;
     }
 
-    static setUserData(userData: any, rememberMe: boolean = false): void {
+    static setUserData(userData: any, rememberMe: boolean = true): void {
         if (typeof window === 'undefined') return; // SSR check
         
         const userDataStr = JSON.stringify(userData);
         
-        if (rememberMe) {
-            localStorage.setItem(this.USER_DATA_KEY, userDataStr);
-            sessionStorage.removeItem(this.USER_DATA_KEY);
-        } else {
-            sessionStorage.setItem(this.USER_DATA_KEY, userDataStr);
-            localStorage.removeItem(this.USER_DATA_KEY);
-        }
+        // Always use localStorage (rememberMe always true)
+        localStorage.setItem(this.USER_DATA_KEY, userDataStr);
+        sessionStorage.removeItem(this.USER_DATA_KEY);
     }
 
     static getUserData(): any | null {

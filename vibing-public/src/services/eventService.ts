@@ -92,11 +92,35 @@ export class EventService {
     return new Date(event.waktu_berakhir) < new Date();
   }
 
-  static getImageUrl(imagePath: string): string {
+  static isEventStarted(event: Event): boolean {
+    return new Date(event.waktu_mulai) <= new Date();
+  }
+
+  static getTimeUntilEventStart(event: Event): number {
+    const startTime = new Date(event.waktu_mulai).getTime();
+    const now = new Date().getTime();
+    return Math.max(0, startTime - now);
+  }
+
+  static formatEventStartTime(event: Event): string {
+    const startTime = new Date(event.waktu_mulai);
+    return startTime.toLocaleString('id-ID', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Jakarta'
+    });
+  }
+
+  static getImageUrl(imagePath: string | null | undefined): string {
     if (!imagePath) return '/event/default-event.jpg';
     if (imagePath.startsWith('http')) return imagePath;
     
-    return `${process.env.NEXT_PUBLIC_BASE_URL}/uploads/events/${imagePath}`;
+    // Backend stores flyer in /uploads/flyer/ directory
+    return `${process.env.NEXT_PUBLIC_BASE_URL}/uploads/flyer/${imagePath}`;
   }
 
   static getCategoryColor(categoryName: string): string {
@@ -109,6 +133,45 @@ export class EventService {
       'Concert': 'bg-indigo-50 text-indigo-700 border-indigo-200',
     };
     return colors[categoryName] || 'bg-gray-50 text-gray-700 border-gray-200';
+  }
+
+  static async registerEvent(eventId: number): Promise<{ success: boolean; message: string; error?: string }> {
+    const result = await ApiClient.request<{ message: string }>(`/event/${eventId}/register`, {
+      method: 'POST',
+    });
+
+    if (result.success) {
+      return {
+        success: true,
+        message: result.message || 'Berhasil mendaftar. Kode token dikirim ke email Anda.'
+      };
+    }
+
+    return {
+      success: false,
+      message: result.error || 'Gagal mendaftar event',
+      error: result.error
+    };
+  }
+
+  static async checkInEvent(eventId: number, token: string): Promise<{ success: boolean; message: string; error?: string }> {
+    const result = await ApiClient.request<{ message: string }>(`/event/${eventId}/checkin`, {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    });
+
+    if (result.success) {
+      return {
+        success: true,
+        message: result.message || 'Absensi berhasil. Terima kasih.'
+      };
+    }
+
+    return {
+      success: false,
+      message: result.error || 'Gagal melakukan absensi',
+      error: result.error
+    };
   }
 
 }

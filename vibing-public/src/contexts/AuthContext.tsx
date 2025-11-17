@@ -5,7 +5,6 @@ import { TokenManager } from '@/utils/tokenManager';
 import { ApiClient } from '@/utils/apiClient';
 import { GlobalErrorHandler } from '@/utils/globalErrorHandler';
 import { useTokenRefresh } from '@/hooks/useTokenRefresh';
-import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 
 interface User {
     id: number;
@@ -22,6 +21,9 @@ interface AuthContextType {
     loading: boolean;
 }
 
+// Note: rememberMe parameter is kept for backward compatibility but always defaults to true
+// All logins now use localStorage (persistent login)
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -32,46 +34,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     useTokenRefresh();
     
-    // Session timeout with 5 minutes inactivity
-    useSessionTimeout({
-        timeoutDuration: 5 * 60 * 1000, // 5 minutes
-        warningDuration: 1 * 60 * 1000, // 1 minute warning
-        isLoggedIn,
-        onTimeout: () => {
-            console.log('Session timeout - auto logout');
-            // Force logout without API call since it's timeout
-            TokenManager.clearAllTokens();
-            setUser(null);
-        },
-        onWarning: () => {
-            console.log('Session timeout warning - 1 minute remaining');
-            // You can show a warning modal here if needed
-        }
-    });
+    // Session timeout removed - users stay logged in permanently
 
     useEffect(() => {
         const checkAuthStatus = async () => {
             try {
                 const accessToken = TokenManager.getAccessToken();
                 const userData = TokenManager.getUserData();
-                const rememberMe = TokenManager.isRememberMe();
-
-                if (!rememberMe) {
-                    const isServerReachable = await ApiClient.checkServerStatus();
-                    if (isServerReachable && accessToken) {
-                        await fetch(`${process.env.NEXT_PUBLIC_API_KEY}/auth/logout`, {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${accessToken}`,
-                                'Content-Type': 'application/json',
-                            },
-                            credentials: 'include',
-                        });
-                    }
-                    TokenManager.clearAllTokens();
-                    setUser(null);
-                    return;
-                }
 
                 if (accessToken && userData) {
                     if (TokenManager.isTokenExpired()) {
@@ -80,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         });
 
                         if (refreshResult.success && refreshResult.data?.accessToken) {
-                            TokenManager.setAccessToken(refreshResult.data.accessToken, rememberMe);
+                            TokenManager.setAccessToken(refreshResult.data.accessToken, true);
                             setUser(userData);
                         } else {
                             TokenManager.clearAllTokens();
@@ -105,15 +74,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return () => clearTimeout(timeoutId);
     }, []);
 
-    const login = async (email: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string }> => {
+    const login = async (email: string, password: string, rememberMe: boolean = true): Promise<{ success: boolean; message?: string }> => {
         try {
             setLoading(true);
 
             const loginResult = await ApiClient.login(email, password);
 
             if (loginResult.success && loginResult.data?.accessToken) {
-                // Store access token
-                TokenManager.setAccessToken(loginResult.data.accessToken, rememberMe);
+                // Store access token - always use localStorage (rememberMe always true)
+                TokenManager.setAccessToken(loginResult.data.accessToken, true);
                 
                 // Decode JWT token to get user data
                 const decodedToken = TokenManager.decodeJWT(loginResult.data.accessToken);
@@ -125,8 +94,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         role: decodedToken.role || 'user'
                     };
                     
-                    // Store user data
-                    TokenManager.setUserData(userData, rememberMe);
+                    // Store user data - always use localStorage
+                    TokenManager.setUserData(userData, true);
                     
                     setUser(userData);
                     return { success: true };

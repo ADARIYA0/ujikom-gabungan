@@ -18,6 +18,9 @@ router.post('/check-lock-status', authController.checkLockStatus);
 router.post('/check-verification-status', authController.checkVerificationStatus);
 
 router.post('/request-reset', authValidator.requestResetValidator, validate, authController.requestPasswordReset);
+router.post('/check-password-reset-request-status', authController.checkPasswordResetRequestStatus);
+router.post('/check-password-reset-lock-status', authController.checkPasswordResetLockStatus);
+router.post('/verify-password-reset-otp', authValidator.verifyPasswordResetOtpValidator, validate, authController.verifyPasswordResetOtp);
 router.post('/reset-password', authValidator.resetPasswordValidator, validate, authController.resetPassword);
 
 module.exports = router;

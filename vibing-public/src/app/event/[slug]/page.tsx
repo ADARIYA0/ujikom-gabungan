@@ -27,10 +27,12 @@ import {
   Phone,
   Mail
 } from 'lucide-react';
-import { useEventBySlug } from '@/hooks/useEvents';
+import { useEventBySlug, useEventRegistration, useEventCheckIn } from '@/hooks/useEvents';
 import { useAuth } from '@/contexts/AuthContext';
 import { EventService } from '@/services/eventService';
 import { Event, User } from '@/types';
+import { useToast } from '@/components/ui/toast';
+import { LoadingOverlay } from '@/components/LoadingOverlay';
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -38,10 +40,16 @@ export default function EventDetailPage() {
   const searchParams = useSearchParams();
   const { user, isLoggedIn } = useAuth();
   const slug = params.slug as string;
-  const { event, loading, error } = useEventBySlug(slug);
-  const [isRegistering, setIsRegistering] = useState(false);
+  const { event, loading, error, refetch } = useEventBySlug(slug);
+  const { registerEvent, isRegistering } = useEventRegistration();
+  const { checkInEvent, isCheckingIn } = useEventCheckIn();
+  const { toast } = useToast();
   const [registrationToken, setRegistrationToken] = useState('');
+  const [checkInToken, setCheckInToken] = useState('');
   const [isFavorited, setIsFavorited] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [showCheckInDialog, setShowCheckInDialog] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const fromPage = searchParams.get('from') || 'home';
   const currentView = fromPage === 'event' ? 'search' : 'home';
@@ -88,19 +96,74 @@ export default function EventDetailPage() {
 
   const isEventFull = EventService.isEventFull(event);
   const isEventPassed = EventService.isEventPassed(event);
+  const isEventStarted = EventService.isEventStarted(event);
+  const isRegistered = event.is_registered || false;
+  const attendanceStatus = event.attendance_status;
   const availableSlots = event.kapasitas_peserta - event.attendee_count;
   const categoryName = event.kategori?.nama_kategori || 'Umum';
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!isLoggedIn) {
       router.push('/login');
       return;
     }
-    setIsRegistering(true);
-    setTimeout(() => {
-      alert(`Berhasil mendaftar event "${event.judul_kegiatan}"! Token kehadiran akan dikirim ke email Anda.`);
-      setIsRegistering(false);
-    }, 1000);
+
+    if (!event) return;
+
+    const result = await registerEvent(event.id);
+
+    if (result.success) {
+      toast({
+        variant: 'success',
+        title: 'Pendaftaran Berhasil!',
+        description: result.message || 'Kode token dikirim ke email Anda.',
+      });
+      setSuccessMessage(result.message);
+      setShowSuccessDialog(true);
+      // Refresh event data to update attendee count and registration status
+      await refetch();
+    } else {
+      toast({
+        variant: 'error',
+        title: 'Pendaftaran Gagal',
+        description: result.message || 'Gagal mendaftar event. Silakan coba lagi.',
+      });
+    }
+  };
+
+  const handleCheckIn = async () => {
+    if (!checkInToken.trim()) {
+      toast({
+        variant: 'warning',
+        title: 'Token Diperlukan',
+        description: 'Masukkan token kehadiran untuk melanjutkan.',
+      });
+      return;
+    }
+
+    if (!event) return;
+
+    const result = await checkInEvent(event.id, checkInToken.trim().toUpperCase());
+
+    if (result.success) {
+      toast({
+        variant: 'success',
+        title: 'Absensi Berhasil!',
+        description: result.message || 'Terima kasih telah mengisi kehadiran.',
+      });
+      setSuccessMessage(result.message || 'Absensi berhasil!');
+      setShowSuccessDialog(true);
+      setShowCheckInDialog(false);
+      setCheckInToken('');
+      // Refresh event data to update attendance status
+      await refetch();
+    } else {
+      toast({
+        variant: 'error',
+        title: 'Absensi Gagal',
+        description: result.message || 'Gagal melakukan absensi. Silakan coba lagi.',
+      });
+    }
   };
 
   const handleShare = () => {
@@ -112,7 +175,11 @@ export default function EventDetailPage() {
       });
     } else {
       navigator.clipboard.writeText(window.location.href);
-      alert('Link berhasil disalin!');
+      toast({
+        variant: 'success',
+        title: 'Link Disalin!',
+        description: 'Link event berhasil disalin ke clipboard.',
+      });
     }
   };
 
@@ -159,7 +226,7 @@ export default function EventDetailPage() {
           <div className="lg:col-span-2 space-y-6">
             <div className="relative overflow-hidden rounded-2xl">
               <Image
-                src={EventService.getImageUrl(event.gambar_kegiatan)}
+                src={EventService.getImageUrl(event.flyer_kegiatan || event.gambar_kegiatan)}
                 alt={event.judul_kegiatan}
                 width={800}
                 height={400}
@@ -304,7 +371,75 @@ export default function EventDetailPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {!isEventFull && !isEventPassed ? (
+                    {isRegistered ? (
+                      attendanceStatus === 'hadir' ? (
+                        <Button disabled className="w-full bg-emerald-600 text-white font-semibold py-3">
+                          <Check className="h-4 w-4 mr-2" />
+                          Sudah Hadir
+                        </Button>
+                      ) : !isEventStarted ? (
+                        <Button disabled className="w-full bg-gray-400 text-white font-semibold py-3">
+                          <Clock className="h-4 w-4 mr-2" />
+                          Belum Waktunya Check-in
+                        </Button>
+                      ) : (
+                        <Dialog open={showCheckInDialog} onOpenChange={setShowCheckInDialog}>
+                          <DialogTrigger asChild>
+                            <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3">
+                              <Ticket className="h-4 w-4 mr-2" />
+                              Isi Data Kehadiran
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Isi Data Kehadiran</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div className="p-4 bg-teal-50 rounded-lg border border-teal-100">
+                                <p className="text-sm text-teal-800">
+                                  Masukkan kode token 10 digit yang telah dikirim ke email Anda untuk melakukan absensi.
+                                </p>
+                                <p className="text-xs text-teal-700 mt-2">
+                                  Event dimulai: <strong>{EventService.formatEventStartTime(event)} WIB</strong>
+                                </p>
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <Label htmlFor="checkInToken">Token Kehadiran (10 digit)</Label>
+                                <Input
+                                  id="checkInToken"
+                                  placeholder="Masukkan token (contoh: ABC123XYZ9)"
+                                  value={checkInToken}
+                                  onChange={(e) => setCheckInToken(e.target.value.toUpperCase())}
+                                  maxLength={10}
+                                  className="text-center text-lg font-mono tracking-widest"
+                                  disabled={isCheckingIn}
+                                />
+                                <p className="text-xs text-gray-500">
+                                  Token dikirim ke email Anda saat pendaftaran
+                                </p>
+                              </div>
+
+                              <div className="flex items-start gap-2 p-3 bg-yellow-50 rounded-lg border border-yellow-100">
+                                <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                                <div className="text-sm text-yellow-800">
+                                  <p className="font-medium mb-1">Perhatian:</p>
+                                  <p>Pastikan token yang Anda masukkan benar. Token hanya dapat digunakan sekali.</p>
+                                </div>
+                              </div>
+
+                              <Button
+                                onClick={handleCheckIn}
+                                disabled={isCheckingIn || !checkInToken.trim()}
+                                className="w-full bg-emerald-600 hover:bg-emerald-700"
+                              >
+                                {isCheckingIn ? 'Memproses...' : 'Konfirmasi Absensi'}
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      )
+                    ) : !isEventFull && !isEventPassed ? (
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button className="w-full bg-primary hover:bg-teal-700 text-white font-semibold py-3">
@@ -378,6 +513,32 @@ export default function EventDetailPage() {
               </CardContent>
             </Card>
 
+            {/* Success Dialog */}
+            <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-emerald-600">
+                    <Check className="h-5 w-5" />
+                    Pendaftaran Berhasil!
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <p className="text-gray-700">
+                    {successMessage || 'Berhasil mendaftar event! Kode token dikirim ke email Anda.'}
+                  </p>
+                  <Button
+                    onClick={() => {
+                      setShowSuccessDialog(false);
+                      refetch();
+                    }}
+                    className="w-full bg-primary hover:bg-teal-700"
+                  >
+                    Tutup
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             {/* Organizer Card */}
             <Card className="border-0 shadow-medium">
               <CardHeader>
@@ -417,6 +578,11 @@ export default function EventDetailPage() {
           </div>
         </div>
       </div>
+
+      <LoadingOverlay 
+        isLoading={isRegistering} 
+        message="Mendaftarkan event..."
+      />
     </div>
   );
 }

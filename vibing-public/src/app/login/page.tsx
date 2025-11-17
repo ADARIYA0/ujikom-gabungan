@@ -16,7 +16,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [success, setSuccess] = useState('');
@@ -65,7 +64,7 @@ export default function LoginPage() {
     setEmailError('');
 
     try {
-      const result = await login(email, password, rememberMe);
+      const result = await login(email, password);
 
       if (result.success) {
         setSuccess('Login berhasil! Anda akan dialihkan ke halaman utama.');
@@ -183,54 +182,6 @@ export default function LoginPage() {
                     )}
                   </button>
                 </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <label
-                  htmlFor="remember"
-                  className="flex items-center space-x-2 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    id="remember"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    disabled={isSubmitting}
-                    className="sr-only"
-                  />
-                  <div
-                    className={`w-4 h-4 rounded border-2 transition-all duration-200 flex items-center justify-center ${isSubmitting
-                        ? 'cursor-not-allowed border-gray-300 bg-gray-100'
-                        : rememberMe
-                          ? 'cursor-pointer border-primary bg-primary hover:border-primary/80 hover:bg-primary/90'
-                          : 'cursor-pointer border-gray-300 bg-white hover:border-primary/50'
-                      }`}
-                  >
-                    {rememberMe && (
-                      <svg
-                        className="w-3 h-3 text-white"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={3}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    )}
-                  </div>
-                  <span
-                    className={`text-sm select-none transition-colors ${isSubmitting
-                        ? 'text-muted-foreground cursor-not-allowed'
-                        : 'text-foreground hover:text-primary'
-                      }`}
-                  >
-                    Ingatkan saya
-                  </span>
-                </label>
               </div>
 
               <Button

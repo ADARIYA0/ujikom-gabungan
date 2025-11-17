@@ -4,10 +4,11 @@ const express = require('express');
 const eventController = require('../controllers/eventController');
 const upload = require('../middlewares/upload');
 const verifyToken = require('../middlewares/authMiddleware');
+const optionalAuth = require('../middlewares/optionalAuth');
 
 const router = express.Router();
 
-router.get('/', eventController.getAllEvent);
+router.get('/', optionalAuth, eventController.getAllEvent);
 
 router.post(
     '/',
@@ -22,8 +23,8 @@ router.post(
     eventController.createEvent
 );
 
-router.get('/slug/:slug', eventController.getEventBySlug);
-router.get('/:id', eventController.getEventById);
+router.get('/slug/:slug', optionalAuth, eventController.getEventBySlug);
+router.get('/:id', optionalAuth, eventController.getEventById);
 
 router.post('/:id/register', verifyToken, eventController.registerEvent);
 router.post('/:id/checkin', verifyToken, eventController.checkInEvent);

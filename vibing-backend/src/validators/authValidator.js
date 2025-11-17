@@ -35,7 +35,7 @@ exports.requestResetValidator = [
         .isEmail().withMessage('Email is not valid')
 ];
 
-exports.verifyResetOtpValidator = [
+exports.verifyPasswordResetOtpValidator = [
     body('email')
         .notEmpty().withMessage('Email is required')
         .isEmail().withMessage('Email is not valid'),
@@ -47,11 +47,8 @@ exports.verifyResetOtpValidator = [
 
 exports.resetPasswordValidator = [
     body('email')
+        .notEmpty().withMessage('Email is required')
         .isEmail().withMessage('Email is not valid'),
-    body('otp')
-        .notEmpty().withMessage('OTP is required')
-        .isLength({ min: 6, max: 6 }).withMessage('OTP must be exactly 6 digits')
-        .isNumeric().withMessage('OTP must contain only numbers'),
     body('newPassword')
         .notEmpty().withMessage('Password wajib diisi')
         .isLength({ min: 8 }).withMessage('Password must be 8 characters')

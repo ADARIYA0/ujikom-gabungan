@@ -177,8 +177,13 @@ exports.refreshToken = async (req, res) => {
             return res.status(403).json({ message: 'Refresh token not found or has been revoked' });
         }
 
-        user.role = 'user';
-        const { accessToken, refreshToken: newRefreshToken } = generateTokens(userToken[relationName]);
+        const userData = userToken[relationName];
+        if (!userData) {
+            logger.error(`Refresh failed: ${relationName} not found in token, subjectId=${id}, role=${role}`);
+            return res.status(500).json({ message: 'Internal server error' });
+        }
+
+        const { accessToken, refreshToken: newRefreshToken } = generateTokens(userData);
 
         userToken.refresh_token = newRefreshToken;
         userToken.expires_at = new Date(Date.now() + ms(process.env.JWT_REFRESH_EXPIRES));
@@ -517,7 +522,12 @@ exports.requestPasswordReset = async (req, res) => {
         user.password_reset_expiry = new Date(Date.now() + expiresMinutes * 60 * 1000);
         user.password_reset_attempts = 0;
         user.password_reset_locked_until = null;
-        user.password_reset_request_count += 1;
+        
+        if (!user.password_reset_last_sent_at) {
+            user.password_reset_request_count = 0;
+        } else {
+            user.password_reset_request_count += 1;
+        }
         const currentRequestCount = user.password_reset_request_count;
         user.password_reset_last_sent_at = now;
         await userRepository.save(user);
@@ -537,26 +547,91 @@ exports.requestPasswordReset = async (req, res) => {
     }
 };
 
-
-exports.resetPassword = async (req, res) => {
+exports.checkPasswordResetRequestStatus = async (req, res) => {
     try {
         const userRepository = getRepository(User);
-        const userTokenRepository = getRepository(UserToken);
+        const { email } = req.body;
 
-        const { email, otp, newPassword } = req.body;
-        logger.info(`POST /auth/reset-password accessed, email=${email}`);
+        if (!email) {
+            return res.status(400).json({ message: 'Email is required' });
+        }
 
-        if (!email || !otp || !newPassword) {
-            return res.status(400).json({ message: 'Email, OTP, and new password required' });
+        const user = await userRepository.findOne({ where: { email } });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const hasActiveRequest = !!(user.password_reset_otp && user.password_reset_expiry);
+        const isExpired = user.password_reset_expiry ? new Date() > new Date(user.password_reset_expiry) : true;
+
+        return res.status(200).json({
+            hasActiveRequest: hasActiveRequest,
+            isExpired: isExpired
+        });
+    } catch (error) {
+        logger.error(`checkPasswordResetRequestStatus error: ${error}`, { stack: error.stack });
+        return res.status(500).json({ message: 'An internal error occurred' });
+    }
+};
+
+exports.checkPasswordResetLockStatus = async (req, res) => {
+    try {
+        const userRepository = getRepository(User);
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ message: 'Email is required' });
+        }
+
+        const user = await userRepository.findOne({ where: { email } });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const now = new Date();
+        let isLocked = false;
+        let remainingSeconds = 0;
+        let lockType = null;
+
+        if (user.password_reset_locked_until && now < new Date(user.password_reset_locked_until)) {
+            isLocked = true;
+            remainingSeconds = Math.ceil((new Date(user.password_reset_locked_until) - now) / 1000);
+            lockType = 'password_reset_verify';
+        }
+
+        if (user.password_reset_locked_until && now >= new Date(user.password_reset_locked_until)) {
+            user.password_reset_attempts = 0;
+            user.password_reset_locked_until = null;
+            await userRepository.save(user);
+            logger.info(`Password reset lock period expired, reset attempts for email=${email}`);
+        }
+
+        return res.status(200).json({
+            isLocked,
+            remainingSeconds,
+            lockType,
+            attemptCount: user.password_reset_attempts || 0
+        });
+    } catch (error) {
+        logger.error(`checkPasswordResetLockStatus error: ${error}`, { stack: error.stack });
+        return res.status(500).json({ message: 'An internal error occurred' });
+    }
+};
+
+exports.verifyPasswordResetOtp = async (req, res) => {
+    try {
+        const userRepository = getRepository(User);
+
+        const { email, otp } = req.body;
+        logger.info(`POST /auth/verify-password-reset-otp accessed, email=${email}`);
+
+        if (!email || !otp) {
+            return res.status(400).json({ message: 'Email and OTP are required' });
         }
 
         const user = await userRepository.findOne({ where: { email } });
         if (!user || !user.password_reset_otp || !user.password_reset_expiry) {
-            return res.status(400).json({ message: 'OTP or invalid data' });
-        }
-
-        if (new Date() > new Date(user.password_reset_expiry)) {
-            return res.status(400).json({ message: 'The OTP has expired' });
+            return res.status(400).json({ message: 'Invalid OTP or no reset request found' });
         }
 
         const maxAttempts = parseInt(process.env.PASSWORD_RESET_MAX_ATTEMPTS, 10);
@@ -564,7 +639,43 @@ exports.resetPassword = async (req, res) => {
             return res.status(429).json({ message: 'Too many attempts. Try again later' });
         }
 
+        if (user.password_reset_locked_until && new Date() >= new Date(user.password_reset_locked_until)) {
+            user.password_reset_attempts = 0;
+            user.password_reset_locked_until = null;
+            await userRepository.save(user);
+            logger.info(`Password reset lock period expired, reset attempts for email=${email}`);
+        }
+
         const otpMatch = await compareOtp(otp, user.password_reset_otp);
+        
+        if (new Date() > new Date(user.password_reset_expiry)) {
+            if (!otpMatch) {
+                user.password_reset_attempts = (user.password_reset_attempts || 0) + 1;
+                const remainingAttempts = maxAttempts - user.password_reset_attempts;
+
+                if (user.password_reset_attempts >= maxAttempts) {
+                    const lockMinutes = parseInt(process.env.PASSWORD_RESET_LOCK_MINUTES, 10);
+                    user.password_reset_locked_until = new Date(Date.now() + lockMinutes * 60 * 1000);
+                    await userRepository.save(user);
+                    logger.warn(`User locked from password reset due to too many attempts: email=${email}`);
+                    return res.status(429).json({
+                        message: `Too many invalid OTP attempts. Try again in ${lockMinutes} minute(s).`,
+                        remainingAttempts: 0,
+                        attemptCount: user.password_reset_attempts,
+                        maxAttempts: maxAttempts
+                    });
+                }
+
+                await userRepository.save(user);
+                return res.status(400).json({
+                    message: 'Invalid OTP',
+                    remainingAttempts: remainingAttempts,
+                    attemptCount: user.password_reset_attempts,
+                    maxAttempts: maxAttempts
+                });
+            }
+            return res.status(400).json({ message: 'The OTP has expired' });
+        }
         if (!otpMatch) {
             user.password_reset_attempts = (user.password_reset_attempts || 0) + 1;
             const remainingAttempts = maxAttempts - user.password_reset_attempts;
@@ -589,6 +700,47 @@ exports.resetPassword = async (req, res) => {
                 attemptCount: user.password_reset_attempts,
                 maxAttempts: maxAttempts
             });
+        }
+
+        // OTP valid, reset attempts counter dan return success
+        user.password_reset_attempts = 0;
+        await userRepository.save(user);
+
+        logger.info(`Password reset OTP verified successfully for email=${email}`);
+        return res.status(200).json({ 
+            message: 'OTP verified successfully. You can now set your new password.',
+            otpVerified: true 
+        });
+    } catch (error) {
+        logger.error(`verifyPasswordResetOtp error: ${error}`, { stack: error.stack });
+        return res.status(500).json({ message: 'An internal error occurred' });
+    }
+};
+
+exports.resetPassword = async (req, res) => {
+    try {
+        const userRepository = getRepository(User);
+        const userTokenRepository = getRepository(UserToken);
+
+        const { email, newPassword } = req.body;
+        logger.info(`POST /auth/reset-password accessed, email=${email}`);
+
+        if (!email || !newPassword) {
+            return res.status(400).json({ message: 'Email and new password are required' });
+        }
+
+        const user = await userRepository.findOne({ where: { email } });
+        if (!user || !user.password_reset_otp || !user.password_reset_expiry) {
+            return res.status(400).json({ message: 'Invalid reset request or no OTP verification found' });
+        }
+
+        if (new Date() > new Date(user.password_reset_expiry)) {
+            return res.status(400).json({ message: 'Reset session has expired. Please request a new OTP' });
+        }
+
+        // Cek apakah OTP sudah diverifikasi (password_reset_attempts = 0 menandakan OTP valid)
+        if (user.password_reset_attempts > 0) {
+            return res.status(400).json({ message: 'Please verify your OTP first before setting new password' });
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);

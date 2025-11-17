@@ -10,9 +10,15 @@ import { Footer } from '@/components/Footer';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Calendar, Grid3X3, List, LayoutGrid } from 'lucide-react';
-import { useEvents } from '@/hooks/useEvents';
+import { useEvents, useEventRegistration, useEventCheckIn } from '@/hooks/useEvents';
 import { useAuth } from '@/contexts/AuthContext';
 import { Filters, EventCategory, Event } from '@/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { AlertCircle } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
+import { LoadingOverlay } from '@/components/LoadingOverlay';
 
 type ViewMode = 'grid' | 'list';
 
@@ -25,6 +31,9 @@ export default function EventPage() {
     category: 'all',
     dateRange: 'all'
   });
+  const [checkInDialogOpen, setCheckInDialogOpen] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
+  const [checkInToken, setCheckInToken] = useState('');
 
   const { events, loading, error, refetch } = useEvents({ 
     limit: 20, 
@@ -32,6 +41,10 @@ export default function EventPage() {
     category: filters.category !== 'all' ? filters.category : undefined,
     time_range: filters.dateRange !== 'all' ? filters.dateRange : undefined
   });
+
+  const { registerEvent, isRegistering } = useEventRegistration();
+  const { checkInEvent, isCheckingIn } = useEventCheckIn();
+  const { toast } = useToast();
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
@@ -65,12 +78,67 @@ export default function EventPage() {
     router.push(`/event/${eventSlug}`);
   };
 
-  const handleRegisterEvent = (eventId: number) => {
+  const handleRegisterEvent = async (eventId: number) => {
     if (!isLoggedIn) {
       router.push('/login');
       return;
     }
-    console.log('Register for event:', eventId);
+
+    const result = await registerEvent(eventId);
+
+    if (result.success) {
+      toast({
+        variant: 'success',
+        title: 'Pendaftaran Berhasil!',
+        description: result.message || 'Kode token dikirim ke email Anda.',
+      });
+      // Refresh events to update attendee counts and registration status
+      await refetch();
+    } else {
+      toast({
+        variant: 'error',
+        title: 'Pendaftaran Gagal',
+        description: result.message || 'Gagal mendaftar event. Silakan coba lagi.',
+      });
+    }
+  };
+
+  const handleCheckInClick = (eventId: number) => {
+    setSelectedEventId(eventId);
+    setCheckInToken('');
+    setCheckInDialogOpen(true);
+  };
+
+  const handleCheckInSubmit = async () => {
+    if (!selectedEventId || !checkInToken.trim()) {
+      toast({
+        variant: 'warning',
+        title: 'Token Diperlukan',
+        description: 'Masukkan token kehadiran untuk melanjutkan.',
+      });
+      return;
+    }
+
+    const result = await checkInEvent(selectedEventId, checkInToken.trim().toUpperCase());
+
+    if (result.success) {
+      toast({
+        variant: 'success',
+        title: 'Absensi Berhasil!',
+        description: result.message || 'Terima kasih telah mengisi kehadiran.',
+      });
+      setCheckInDialogOpen(false);
+      setCheckInToken('');
+      setSelectedEventId(null);
+      // Refresh events to update attendance status
+      await refetch();
+    } else {
+      toast({
+        variant: 'error',
+        title: 'Absensi Gagal',
+        description: result.message || 'Gagal melakukan absensi. Silakan coba lagi.',
+      });
+    }
   };
 
   // Sort events by nearest time
@@ -211,6 +279,7 @@ export default function EventPage() {
                   event={event}
                   onViewDetails={handleViewEvent}
                   onRegister={handleRegisterEvent}
+                  onCheckIn={handleCheckInClick}
                   isLoggedIn={isLoggedIn}
                   fromPage="event"
                 />
@@ -220,6 +289,7 @@ export default function EventPage() {
                   event={event}
                   onViewDetails={handleViewEvent}
                   onRegister={handleRegisterEvent}
+                  onCheckIn={handleCheckInClick}
                   isLoggedIn={isLoggedIn}
                   fromPage="event"
                 />
@@ -228,6 +298,73 @@ export default function EventPage() {
           )}
         </div>
       </div>
+
+      {/* Check-In Dialog */}
+      <Dialog open={checkInDialogOpen} onOpenChange={setCheckInDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Isi Data Kehadiran</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-teal-50 rounded-lg border border-teal-100">
+              <p className="text-sm text-teal-800">
+                Masukkan kode token 10 digit yang telah dikirim ke email Anda untuk melakukan absensi.
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="checkInToken">Token Kehadiran (10 digit)</Label>
+              <Input
+                id="checkInToken"
+                placeholder="Masukkan token (contoh: ABC123XYZ9)"
+                value={checkInToken}
+                onChange={(e) => setCheckInToken(e.target.value.toUpperCase())}
+                maxLength={10}
+                className="text-center text-lg font-mono tracking-widest"
+                disabled={isCheckingIn}
+              />
+              <p className="text-xs text-gray-500">
+                Token dikirim ke email Anda saat pendaftaran
+              </p>
+            </div>
+
+            <div className="flex items-start gap-2 p-3 bg-yellow-50 rounded-lg border border-yellow-100">
+              <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-yellow-800">
+                <p className="font-medium mb-1">Perhatian:</p>
+                <p>Pastikan token yang Anda masukkan benar. Token hanya dapat digunakan sekali.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setCheckInDialogOpen(false);
+                  setCheckInToken('');
+                  setSelectedEventId(null);
+                }}
+                className="flex-1"
+                disabled={isCheckingIn}
+              >
+                Batal
+              </Button>
+              <Button
+                onClick={handleCheckInSubmit}
+                disabled={isCheckingIn || !checkInToken.trim()}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+              >
+                {isCheckingIn ? 'Memproses...' : 'Konfirmasi Absensi'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <LoadingOverlay 
+        isLoading={isRegistering} 
+        message="Mendaftarkan event..."
+      />
       
       <Footer />
     </div>

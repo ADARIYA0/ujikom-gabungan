@@ -71,6 +71,7 @@ exports.getAllEvent = async (req, res) => {
         }
 
         const [items, total] = await qb.skip(offset).take(limit).getManyAndCount();
+        const userId = req.user?.id || null;
 
         const events = await Promise.all(items.map(async ev => {
             const count = await attendanceRepo().createQueryBuilder('d')
@@ -78,6 +79,21 @@ exports.getAllEvent = async (req, res) => {
                 .getCount();
 
             const is_full = (ev.kapasitas_peserta > 0) && (count >= ev.kapasitas_peserta);
+
+            // Check if user is registered for this event
+            let is_registered = false;
+            let attendance_status = null;
+            if (userId) {
+                const userAttendance = await attendanceRepo().createQueryBuilder('d')
+                    .where('d.event = :eventId', { eventId: ev.id })
+                    .andWhere('d.user = :userId', { userId })
+                    .getOne();
+                
+                if (userAttendance) {
+                    is_registered = true;
+                    attendance_status = userAttendance.status_absen;
+                }
+            }
 
             return {
                 id: ev.id,
@@ -99,7 +115,9 @@ exports.getAllEvent = async (req, res) => {
                     }
                     : null,
                 attendee_count: count,
-                is_full
+                is_full,
+                is_registered,
+                attendance_status
             };
         }));
 
@@ -130,6 +148,22 @@ exports.getEventBySlug = async (req, res) => {
             .where('d.kegiatan_id = :id', { id: ev.id })
             .getCount();
 
+        // Check if user is registered for this event
+        const userId = req.user?.id || null;
+        let is_registered = false;
+        let attendance_status = null;
+        if (userId) {
+            const userAttendance = await attendanceRepo().createQueryBuilder('d')
+                .where('d.event = :eventId', { eventId: ev.id })
+                .andWhere('d.user = :userId', { userId })
+                .getOne();
+            
+            if (userAttendance) {
+                is_registered = true;
+                attendance_status = userAttendance.status_absen;
+            }
+        }
+
         const response = {
             id: ev.id,
             judul_kegiatan: ev.judul_kegiatan,
@@ -150,7 +184,9 @@ exports.getEventBySlug = async (req, res) => {
                 }
                 : null,
             attendee_count: attendeeCount,
-            is_full: (ev.kapasitas_peserta > 0) && (attendeeCount >= ev.kapasitas_peserta)
+            is_full: (ev.kapasitas_peserta > 0) && (attendeeCount >= ev.kapasitas_peserta),
+            is_registered,
+            attendance_status
         };
 
         logger.info(`Event retrieved successfully: slug=${slug}`);
@@ -180,6 +216,22 @@ exports.getEventById = async (req, res) => {
             .where('d.kegiatan_id = :id', { id })
             .getCount();
 
+        // Check if user is registered for this event
+        const userId = req.user?.id || null;
+        let is_registered = false;
+        let attendance_status = null;
+        if (userId) {
+            const userAttendance = await attendanceRepo().createQueryBuilder('d')
+                .where('d.event = :eventId', { eventId: ev.id })
+                .andWhere('d.user = :userId', { userId })
+                .getOne();
+            
+            if (userAttendance) {
+                is_registered = true;
+                attendance_status = userAttendance.status_absen;
+            }
+        }
+
         const response = {
             id: ev.id,
             judul_kegiatan: ev.judul_kegiatan,
@@ -199,7 +251,9 @@ exports.getEventById = async (req, res) => {
                 }
                 : null,
             attendee_count: attendeeCount,
-            is_full: (ev.kapasitas_peserta > 0) && (attendeeCount >= ev.kapasitas_peserta)
+            is_full: (ev.kapasitas_peserta > 0) && (attendeeCount >= ev.kapasitas_peserta),
+            is_registered,
+            attendance_status
         };
 
         logger.info(`Event retrieved successfully: id=${id}`);
@@ -400,7 +454,8 @@ exports.registerEvent = async (req, res) => {
             return res.status(409).json({ message: 'Anda sudah terdaftar untuk event ini' });
         }
 
-        const token = generateAlphanumeric(6);
+        // Generate 10-digit alphanumeric token
+        const token = generateAlphanumeric(10);
         const tokenHash = await hashToken(token);
 
         const attendanceData = {
@@ -410,19 +465,50 @@ exports.registerEvent = async (req, res) => {
             status_absen: 'tidak-hadir'
         };
 
+        // Get user email before saving attendance
+        const userEmail = req.user.email;
+        if (!userEmail) {
+            logger.error('User email not found in request', { userId });
+            return res.status(400).json({ message: 'Email pengguna tidak ditemukan' });
+        }
+
+        // Save attendance first
         const saved = await AppDataSource.manager.transaction(async (manager) => {
             const repo = manager.getRepository('Attendance');
             const created = repo.create(attendanceData);
             return await repo.save(created);
         });
 
-        const userEmail = req.user.email;
+        // Send email with token
         try {
-            await sendEventTokenEmail(userEmail, token, ev.judul_kegiatan, parseInt(process.env.OTP_EXPIRES_MINUTES || '5', 10));
+            const expiresMinutes = parseInt(process.env.OTP_EXPIRES_MINUTES || '15', 10);
+            logger.info(`Sending event token email to ${userEmail} for event ${ev.judul_kegiatan}`);
+            await sendEventTokenEmail(userEmail, token, ev.judul_kegiatan, expiresMinutes);
+            logger.info(`Event token email sent successfully to ${userEmail}`);
         } catch (mailErr) {
-            await AppDataSource.getRepository('Attendance').delete({ id: saved.id });
-            logger.error('Failed to send event token email', { err: mailErr });
-            return res.status(500).json({ message: 'Gagal mengirim email token. Silakan coba lagi' });
+            // Rollback attendance if email fails
+            logger.error('Failed to send event token email', { 
+                err: mailErr, 
+                errorMessage: mailErr.message,
+                stack: mailErr.stack,
+                userEmail,
+                eventId,
+                attendanceId: saved.id
+            });
+            
+            try {
+                await AppDataSource.getRepository('Attendance').delete({ id: saved.id });
+                logger.info(`Rolled back attendance record ${saved.id} due to email failure`);
+            } catch (deleteErr) {
+                logger.error('Failed to rollback attendance after email failure', { 
+                    deleteErr: deleteErr.message,
+                    attendanceId: saved.id 
+                });
+            }
+            
+            return res.status(500).json({ 
+                message: 'Gagal mengirim email token. Silakan coba lagi atau hubungi administrator.' 
+            });
         }
 
         logger.info(`User ${userId} registered to event ${eventId}, attendanceId=${saved.id}`);
@@ -450,6 +536,31 @@ exports.checkInEvent = async (req, res) => {
 
         if (!attendance) return res.status(404).json({ message: 'Pendaftaran tidak ditemukan untuk user ini' });
 
+        // Get event to check start time
+        const event = await eventRepo().findOne({ where: { id: eventId } });
+        if (!event) {
+            return res.status(404).json({ message: 'Event tidak ditemukan' });
+        }
+
+        // Check if event has started
+        const eventStartTime = new Date(event.waktu_mulai);
+        const currentTime = new Date();
+        if (currentTime < eventStartTime) {
+            const timeUntilStart = Math.ceil((eventStartTime - currentTime) / 1000 / 60); // minutes
+            logger.warn(`Check-in attempted before event start: eventId=${eventId}, userId=${userId}, minutesUntilStart=${timeUntilStart}`);
+            return res.status(400).json({ 
+                message: `Event belum dimulai. Check-in dapat dilakukan mulai ${eventStartTime.toLocaleString('id-ID', { 
+                    weekday: 'long',
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: 'Asia/Jakarta'
+                })} WIB.` 
+            });
+        }
+
         if (attendance.status_absen === 'hadir') {
             return res.status(400).json({ message: 'Anda sudah melakukan absensi' });
         }
@@ -463,7 +574,8 @@ exports.checkInEvent = async (req, res) => {
 
         const valid = await compareToken(token, attendance.otp);
         if (!valid) {
-            return res.status(401).json({ message: 'Token tidak valid' });
+            logger.warn(`Invalid check-in token for event ${eventId} by user ${userId}`);
+            return res.status(400).json({ message: 'Token tidak valid. Pastikan token yang Anda masukkan benar.' });
         }
 
         await AppDataSource.manager.transaction(async manager => {

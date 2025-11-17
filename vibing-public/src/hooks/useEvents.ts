@@ -106,9 +106,98 @@ export function useEventBySlug(slug: string) {
     }
   }, [slug]);
 
+  const refetch = async () => {
+    if (slug) {
+      try {
+        setLoading(true);
+        setError(null);
+        const eventData = await EventService.getEventBySlug(slug);
+        setEvent(eventData);
+      } catch (err) {
+        setError('Event tidak ditemukan');
+        setEvent(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
   return {
     event,
     loading,
+    error,
+    refetch
+  };
+}
+
+export function useEventRegistration() {
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const registerEvent = async (eventId: number): Promise<{ success: boolean; message: string }> => {
+    try {
+      setIsRegistering(true);
+      setError(null);
+
+      const result = await EventService.registerEvent(eventId);
+
+      if (!result.success) {
+        setError(result.error || result.message);
+        return result;
+      }
+
+      return result;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Gagal mendaftar event';
+      setError(errorMessage);
+      return {
+        success: false,
+        message: errorMessage
+      };
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  return {
+    registerEvent,
+    isRegistering,
+    error
+  };
+}
+
+export function useEventCheckIn() {
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const checkInEvent = async (eventId: number, token: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      setIsCheckingIn(true);
+      setError(null);
+
+      const result = await EventService.checkInEvent(eventId, token);
+
+      if (!result.success) {
+        setError(result.error || result.message);
+        return result;
+      }
+
+      return result;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Gagal melakukan absensi';
+      setError(errorMessage);
+      return {
+        success: false,
+        message: errorMessage
+      };
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
+
+  return {
+    checkInEvent,
+    isCheckingIn,
     error
   };
 }

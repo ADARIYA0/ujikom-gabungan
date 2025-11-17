@@ -35,7 +35,7 @@ class CategoryService {
      */
     async getAllCategories(): Promise<Category[]> {
         try {
-            const response = await fetch(`${this.baseUrl}/api/categories`, {
+            const response = await fetch(`${this.baseUrl}/api/category`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',

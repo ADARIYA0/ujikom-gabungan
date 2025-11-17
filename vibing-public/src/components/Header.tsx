@@ -175,15 +175,15 @@ export function Header({
                 <div className="relative" ref={dropdownRef}>
                   <Button
                     variant={isScrolled ? "default" : "pill"}
-                    size="sm"
+                    size="icon"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className={`px-5 py-2 text-sm transition-all duration-200 cursor-pointer ${
+                    className={`transition-all duration-200 cursor-pointer rounded-full ${
                       isScrolled 
                         ? 'bg-primary text-white hover:bg-primary/90' 
-                        : 'bg-white text-gray-900 hover:bg-gray-100'
+                        : 'bg-white text-gray-900 hover:bg-gray-100 shadow-md hover:shadow-lg'
                     }`}
                   >
-                    PROFILE
+                    <User className="h-5 w-5" />
                   </Button>
 
                   {/* Dropdown Menu with Animation */}
@@ -191,13 +191,13 @@ export function Header({
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 transform transition-all duration-200 ease-out opacity-100 scale-100">
                       <button
                         onClick={() => {
-                          onViewChange('dashboard');
+                          router.push('/profile');
                           setIsDropdownOpen(false);
                         }}
                         className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors"
                       >
                         <User className="h-4 w-4" />
-                        <span>Dashboard</span>
+                        <span>Profile</span>
                       </button>
                       <button
                         onClick={async () => {
