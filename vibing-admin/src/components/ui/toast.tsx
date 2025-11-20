@@ -8,7 +8,7 @@ export interface ToastProps {
   id: string;
   title?: string;
   description?: string;
-  variant?: 'default' | 'success' | 'error' | 'warning' | 'info';
+  variant?: 'default' | 'success' | 'error' | 'warning' | 'info' | 'destructive';
   duration?: number;
 }
 
@@ -124,6 +124,12 @@ function Toast({ id, title, description, variant = 'default', onDismiss }: Toast
       title: 'text-red-900',
       description: 'text-red-700',
     },
+    destructive: {
+      container: 'bg-red-50 border-red-200 shadow-lg',
+      icon: 'text-red-600',
+      title: 'text-red-900',
+      description: 'text-red-700',
+    },
     warning: {
       container: 'bg-yellow-50 border-yellow-200 shadow-lg',
       icon: 'text-yellow-600',
@@ -138,14 +144,17 @@ function Toast({ id, title, description, variant = 'default', onDismiss }: Toast
     },
   };
 
-  const variantStyles = variants[variant];
+  // Ensure variant is valid, fallback to 'default' if not
+  const validVariant = variant && variants[variant] ? variant : 'default';
+  const variantStyles = variants[validVariant] || variants.default;
   const Icon = {
     default: Info,
     success: CheckCircle2,
     error: XCircle,
+    destructive: XCircle,
     warning: AlertCircle,
     info: Info,
-  }[variant];
+  }[validVariant] || Info;
 
   return (
     <div

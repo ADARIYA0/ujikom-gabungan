@@ -39,6 +39,10 @@ module.exports = new EntitySchema({
             length: 255,
             nullable: true
         },
+        certificate_template_id: {
+            type: 'int',
+            nullable: true
+        },
         kapasitas_peserta: {
             type: 'int',
             default: 0
@@ -78,6 +82,12 @@ module.exports = new EntitySchema({
             target: 'Attendance',
             type: 'one-to-many',
             inverseSide: 'event'
+        },
+        certificateTemplate: {
+            target: 'GlobalCertificateTemplate',
+            type: 'many-to-one',
+            joinColumn: { name: 'certificate_template_id' },
+            nullable: true
         }
     }
 });

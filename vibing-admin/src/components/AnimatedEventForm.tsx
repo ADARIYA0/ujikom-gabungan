@@ -14,6 +14,7 @@ import CapacityInput from './ui/capacity-input';
 import CustomValidation from './ui/custom-validation';
 import { categoryService, Category } from '@/services/categoryService';
 import { useToast } from './ui/toast';
+import GlobalCertificateTemplateService, { GlobalTemplate } from '@/services/globalCertificateTemplateService';
 
 interface AnimatedEventFormProps {
     onSubmit: (eventData: any) => void;
@@ -49,10 +50,15 @@ export default function AnimatedEventForm({ onSubmit, onCancel, initialData }: A
     }>({});
     const [showFileUploads, setShowFileUploads] = useState({
         flyer_kegiatan: false,
-        sertifikat_kegiatan: false
+        sertifikat_kegiatan: isEditMode && (initialData?.certificate_template_id || initialData?.certificate) ? true : false
     });
     const [categories, setCategories] = useState<Category[]>([]);
     const [categoriesLoading, setCategoriesLoading] = useState(true);
+    const [certificateTemplates, setCertificateTemplates] = useState<GlobalTemplate[]>([]);
+    const [certificateTemplatesLoading, setCertificateTemplatesLoading] = useState(false);
+    const [selectedCertificateTemplateId, setSelectedCertificateTemplateId] = useState<number | null>(
+        initialData?.certificate_template_id || null
+    );
 
     // Fetch categories on component mount
     useEffect(() => {
@@ -69,6 +75,42 @@ export default function AnimatedEventForm({ onSubmit, onCancel, initialData }: A
         };
         fetchCategories();
     }, []);
+
+    // Set selected template ID from initialData when in edit mode
+    useEffect(() => {
+        if (isEditMode && initialData?.certificate_template_id) {
+            setSelectedCertificateTemplateId(initialData.certificate_template_id);
+        }
+    }, [isEditMode, initialData?.certificate_template_id]);
+
+    // Fetch certificate templates when certificate section is shown or in edit mode
+    useEffect(() => {
+        const fetchCertificateTemplates = async () => {
+            if (showFileUploads.sertifikat_kegiatan || (isEditMode && initialData?.certificate_template_id)) {
+                try {
+                    setCertificateTemplatesLoading(true);
+                    const response = await GlobalCertificateTemplateService.getGlobalCertificateTemplates({ isActive: true });
+                    // Response structure: { success, message, data: { templates, total, page, limit, totalPages } }
+                    if (response.data && response.data.templates) {
+                        setCertificateTemplates(response.data.templates);
+                    } else {
+                        setCertificateTemplates([]);
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch certificate templates:', error);
+                    toast({
+                        variant: 'destructive',
+                        title: 'Error',
+                        description: 'Gagal memuat template sertifikat',
+                    });
+                    setCertificateTemplates([]);
+                } finally {
+                    setCertificateTemplatesLoading(false);
+                }
+            }
+        };
+        fetchCertificateTemplates();
+    }, [showFileUploads.sertifikat_kegiatan, isEditMode, initialData?.certificate_template_id]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -110,8 +152,10 @@ export default function AnimatedEventForm({ onSubmit, onCancel, initialData }: A
                 harga: formData.harga || 0,
                 kategori_id: formData.kategori_id,
                 flyer_kegiatan: selectedFiles.flyer_kegiatan,
-                sertifikat_kegiatan: selectedFiles.sertifikat_kegiatan
-            };
+                sertifikat_kegiatan: selectedFiles.sertifikat_kegiatan,
+                // Add certificate template ID if selected
+                certificate_template_id: selectedCertificateTemplateId || undefined
+            } as any;
 
             let response;
             if (isEditMode && initialData) {
@@ -189,9 +233,11 @@ export default function AnimatedEventForm({ onSubmit, onCancel, initialData }: A
                     flyer_kegiatan: false,
                     sertifikat_kegiatan: false
                 });
+                setSelectedCertificateTemplateId(null);
             } else {
                 // In edit mode, just clear selected files
                 setSelectedFiles({});
+                setSelectedCertificateTemplateId(null);
             }
             setErrors({});
             
@@ -611,18 +657,52 @@ export default function AnimatedEventForm({ onSubmit, onCancel, initialData }: A
 
                         {showFileUploads.sertifikat_kegiatan && (
                             <div className="transform transition-all duration-200 ease-in-out hover:translate-y-[-1px] animate-in slide-in-from-top-2 fade-in-0">
-                                <SimpleFileUpload
-                                    label="Template Sertifikat"
-                                    accept={['.jpg', '.jpeg', '.png', '.webp']}
-                                    onFileSelected={(file) => handleFileSelected('sertifikat_kegiatan', file)}
-                                    onFileRemoved={() => handleFileRemoved('sertifikat_kegiatan')}
-                                    currentFile={selectedFiles.sertifikat_kegiatan}
-                                    disabled={isSubmitting}
-                                    error={errors.sertifikat_kegiatan}
-                                />
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Hanya file gambar (JPG, PNG, WebP) yang diizinkan. Maksimal 10MB.
-                                </p>
+                                <Label htmlFor="certificateTemplate" className="text-sm font-medium text-gray-700 mb-2 block">
+                                    Pilih Template Sertifikat
+                                </Label>
+                                {certificateTemplatesLoading ? (
+                                    <div className="flex items-center justify-center py-4">
+                                        <Loader2 className="h-5 w-5 animate-spin text-teal-600" />
+                                        <span className="ml-2 text-sm text-gray-600">Memuat template...</span>
+                                    </div>
+                                ) : certificateTemplates.length === 0 ? (
+                                    <div className="p-4 border border-gray-200 rounded-lg bg-gray-50 text-center">
+                                        <p className="text-sm text-gray-600 mb-2">Tidak ada template tersedia</p>
+                                        <p className="text-xs text-gray-500">Silakan buat template di halaman Global Templates terlebih dahulu</p>
+                                    </div>
+                                ) : (
+                                    <select
+                                        id="certificateTemplate"
+                                        value={selectedCertificateTemplateId || ''}
+                                        onChange={(e) => {
+                                            const templateId = e.target.value ? parseInt(e.target.value) : null;
+                                            setSelectedCertificateTemplateId(templateId);
+                                            // Clear file selection when template is selected
+                                            if (templateId) {
+                                                handleFileRemoved('sertifikat_kegiatan');
+                                            }
+                                        }}
+                                        disabled={isSubmitting}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                    >
+                                        <option value="">-- Pilih Template Sertifikat --</option>
+                                        {certificateTemplates.map((template) => (
+                                            <option key={template.id} value={template.id}>
+                                                {template.name} {template.isDefault ? '(Default)' : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
+                                {selectedCertificateTemplateId && (
+                                    <div className="mt-3 p-3 border border-teal-200 rounded-lg bg-teal-50">
+                                        <p className="text-xs text-teal-700">
+                                            Template yang dipilih akan digunakan untuk generate sertifikat peserta event ini.
+                                        </p>
+                                    </div>
+                                )}
+                                {errors.sertifikat_kegiatan && (
+                                    <p className="text-xs text-red-600 mt-1">{errors.sertifikat_kegiatan}</p>
+                                )}
                             </div>
                         )}
                     </div>

@@ -75,7 +75,8 @@ function transformApiEventToEvent(apiEvent: ApiEvent): Event {
     capacity: apiEvent.kapasitas_peserta || 0,
     status,
     price: apiEvent.harga || 0,
-    kategori_id: apiEvent.kategori?.id
+    kategori_id: apiEvent.kategori?.id,
+    certificate_template_id: apiEvent.certificate_template_id || undefined
   };
 }
 
@@ -255,6 +256,11 @@ export class EventApiService {
 
       if (formData.sertifikat_kegiatan && typeof formData.sertifikat_kegiatan !== 'string') {
         form.append('sertifikat_kegiatan', formData.sertifikat_kegiatan);
+      }
+
+      // Add certificate template ID if provided
+      if ((formData as any).certificate_template_id) {
+        form.append('certificate_template_id', (formData as any).certificate_template_id.toString());
       }
 
       const response = await fetch(`${API_BASE_URL}/event`, {

@@ -14,6 +14,11 @@ module.exports = new EntitySchema({
             length: 255,
             nullable: false
         },
+        nama_asli: {
+            type: 'varchar',
+            length: 255,
+            nullable: true
+        },
         no_handphone: {
             type: 'varchar',
             length: 20,

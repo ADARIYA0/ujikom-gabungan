@@ -447,16 +447,16 @@ export default function EventDetailPage() {
                           </Button>
                         )}
                         {attendanceStatus === 'hadir' ? (
-                          <Button disabled className="w-full bg-emerald-600 text-white font-semibold py-3">
-                            <Check className="h-4 w-4 mr-2" />
-                            Sudah Hadir
-                          </Button>
-                        ) : !isEventStarted ? (
-                          <Button disabled className="w-full bg-gray-400 text-white font-semibold py-3">
-                            <Clock className="h-4 w-4 mr-2" />
-                            Belum Waktunya Check-in
-                          </Button>
-                        ) : (
+                        <Button disabled className="w-full bg-emerald-600 text-white font-semibold py-3">
+                          <Check className="h-4 w-4 mr-2" />
+                          Sudah Hadir
+                        </Button>
+                      ) : !isEventStarted ? (
+                        <Button disabled className="w-full bg-gray-400 text-white font-semibold py-3">
+                          <Clock className="h-4 w-4 mr-2" />
+                          Belum Waktunya Check-in
+                        </Button>
+                      ) : (
                         <Dialog open={showCheckInDialog} onOpenChange={setShowCheckInDialog}>
                           <DialogTrigger asChild>
                             <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3">
@@ -510,7 +510,7 @@ export default function EventDetailPage() {
                                 {isCheckingIn ? 'Memproses...' : 'Konfirmasi Absensi'}
                               </Button>
                             </div>
-                            </DialogContent>
+                          </DialogContent>
                         </Dialog>
                         )}
                       </>

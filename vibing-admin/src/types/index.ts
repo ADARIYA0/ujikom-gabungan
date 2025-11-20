@@ -15,6 +15,7 @@ export interface Event {
   status: 'upcoming' | 'ongoing' | 'completed';
   price?: number;
   kategori_id?: number;
+  certificate_template_id?: number;
 }
 
 export interface Participant {

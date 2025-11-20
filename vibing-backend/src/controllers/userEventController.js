@@ -181,6 +181,7 @@ exports.getEventHistory = async (req, res) => {
                     lokasi_kegiatan: ev.lokasi_kegiatan,
                     flyer_kegiatan: ev.flyer_kegiatan,
                     sertifikat_kegiatan: ev.sertifikat_kegiatan,
+                    certificate_template_id: ev.certificate_template_id,
                     waktu_mulai: ev.waktu_mulai,
                     waktu_berakhir: ev.waktu_berakhir,
                     kategori: ev.category
@@ -190,6 +191,7 @@ exports.getEventHistory = async (req, res) => {
                             slug: ev.category.slug
                         }
                         : null,
+                    attendance_id: attendance.id,
                     attendance_status: attendance.status_absen,
                     waktu_absen: attendance.waktu_absen,
                     registered_at: attendance.created_at,

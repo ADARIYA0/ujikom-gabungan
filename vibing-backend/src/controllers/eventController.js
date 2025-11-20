@@ -126,6 +126,7 @@ exports.getAllEvent = async (req, res) => {
                 lokasi_kegiatan: ev.lokasi_kegiatan,
                 flyer_kegiatan: ev.flyer_kegiatan,
                 sertifikat_kegiatan: ev.sertifikat_kegiatan,
+                certificate_template_id: ev.certificate_template_id,
                 kapasitas_peserta: ev.kapasitas_peserta,
                 harga: ev.harga,
                 waktu_mulai: ev.waktu_mulai,
@@ -445,6 +446,7 @@ exports.getEventBySlug = async (req, res) => {
             lokasi_kegiatan: ev.lokasi_kegiatan,
             flyer_kegiatan: ev.flyer_kegiatan,
             sertifikat_kegiatan: ev.sertifikat_kegiatan,
+            certificate_template_id: ev.certificate_template_id,
             kapasitas_peserta: ev.kapasitas_peserta,
             harga: ev.harga,
             waktu_mulai: ev.waktu_mulai,
@@ -763,6 +765,7 @@ exports.getEventById = async (req, res) => {
             lokasi_kegiatan: ev.lokasi_kegiatan,
             flyer_kegiatan: ev.flyer_kegiatan,
             sertifikat_kegiatan: ev.sertifikat_kegiatan,
+            certificate_template_id: ev.certificate_template_id,
             kapasitas_peserta: ev.kapasitas_peserta,
             harga: ev.harga,
             waktu_mulai: ev.waktu_mulai,
@@ -1027,7 +1030,8 @@ exports.createEvent = async (req, res) => {
             waktu_mulai,
             waktu_berakhir,
             kategori_id,
-            kategori_slug
+            kategori_slug,
+            certificate_template_id
         } = req.body;
 
         let category = null;
@@ -1042,6 +1046,22 @@ exports.createEvent = async (req, res) => {
             if (!category) {
                 logger.warn('Kategori slug tidak ditemukan saat membuat event', { kategori_slug });
                 return res.status(400).json({ message: 'Kategori tidak ditemukan' });
+            }
+        }
+
+        // Validate certificate template if provided
+        let certificateTemplate = null;
+        if (certificate_template_id) {
+            const templateRepo = AppDataSource.getRepository('GlobalCertificateTemplate');
+            certificateTemplate = await templateRepo.findOne({ 
+                where: { 
+                    id: parseInt(certificate_template_id, 10),
+                    is_active: 1
+                } 
+            });
+            if (!certificateTemplate) {
+                logger.warn('Certificate template not found or inactive', { certificate_template_id });
+                return res.status(400).json({ message: 'Template sertifikat tidak ditemukan atau tidak aktif' });
             }
         }
 
@@ -1100,6 +1120,7 @@ exports.createEvent = async (req, res) => {
         }
 
         const flyer_final = flyer || null;
+        
         const eventData = {
             judul_kegiatan,
             slug: eventSlug,
@@ -1107,6 +1128,7 @@ exports.createEvent = async (req, res) => {
             lokasi_kegiatan,
             flyer_kegiatan: flyer_final,
             sertifikat_kegiatan: sertifikat,
+            certificate_template_id: certificateTemplate ? certificateTemplate.id : null,
             kapasitas_peserta: kapasitas_peserta ? parseInt(kapasitas_peserta, 10) : 0,
             harga: harga ? parseFloat(harga) : 0.0,
             waktu_mulai: new Date(waktu_mulai),

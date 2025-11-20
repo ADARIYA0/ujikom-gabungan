@@ -23,7 +23,8 @@ import {
   CheckCircle2,
   CreditCard,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  Download
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { EventService } from '@/services/eventService';
@@ -439,87 +440,194 @@ export default function ProfilePage() {
                       </CardContent>
                     </Card>
                   ) : (
-                    (Array.isArray(eventHistory) ? eventHistory : []).map((event) => (
-                      <Card key={event.id} className="border-0 shadow-medium hover:shadow-large transition-shadow">
-                        <CardContent className="p-6">
-                          <div className="flex flex-col md:flex-row gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-start justify-between mb-3">
-                                <div>
-                                  <h3 className="text-lg font-bold text-gray-900 mb-1">
-                                    {event.judul_kegiatan}
-                                  </h3>
-                                  <Badge className={`${EventService.getCategoryColor(event.kategori?.nama_kategori || '')} border`}>
-                                    {event.kategori?.nama_kategori || 'Umum'}
+                    (Array.isArray(eventHistory) ? eventHistory : []).map((event: any) => {
+                      // Check if user attended - if waktu_absen exists, user has attended
+                      // User can download certificate if they attended (hadir)
+                      // Certificate can be generated from event template or default template
+                      const hasAttended = event.attendance_status === 'hadir' || !!event.waktu_absen;
+                      // Get attendance_id from event (backend returns it as attendance_id)
+                      const attendanceId = event.attendance_id || event.attendanceId || (event as any).attendance_id;
+                      // Show download button if user attended (attendance_id will be used in the download request)
+                      // Certificate can be generated even without event-specific template (uses default template)
+                      const canDownloadCertificate = hasAttended;
+                      
+                      
+                      return (
+                        <Card key={event.id} className="border-0 shadow-medium hover:shadow-large transition-shadow">
+                          <CardContent className="p-6">
+                            <div className="flex flex-col md:flex-row gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-start justify-between mb-3">
+                                  <div>
+                                    <h3 className="text-lg font-bold text-gray-900 mb-1">
+                                      {event.judul_kegiatan}
+                                    </h3>
+                                    <Badge className={`${EventService.getCategoryColor(event.kategori?.nama_kategori || '')} border`}>
+                                      {event.kategori?.nama_kategori || 'Umum'}
+                                    </Badge>
+                                  </div>
+                                  <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                    Selesai
                                   </Badge>
                                 </div>
-                                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
-                                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                                  Selesai
-                                </Badge>
-                              </div>
-                              <div className="space-y-2 mt-4">
-                                <div className="flex items-center text-sm text-gray-600">
-                                  <Calendar className="h-4 w-4 mr-3 text-primary flex-shrink-0" />
-                                  <span className="font-medium text-gray-700">
-                                    {EventService.isSameDay(event.waktu_mulai, event.waktu_berakhir) ? (
-                                      <>
-                                        {EventService.formatEventDate(event.waktu_mulai)}
-                                        <span className="ml-2 text-gray-500">
-                                          ({EventService.formatEventTime(event.waktu_mulai)} - {EventService.formatEventTime(event.waktu_berakhir)} WIB)
-                                        </span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        {EventService.formatEventDate(event.waktu_mulai)} - {EventService.formatEventDate(event.waktu_berakhir)}
-                                      </>
-                                    )}
-                                  </span>
-                                </div>
-                                <div className="flex items-center text-sm text-gray-600">
-                                  <MapPin className="h-4 w-4 mr-3 text-primary flex-shrink-0" />
-                                  <span className="font-medium text-gray-700">
-                                    {event.lokasi_kegiatan}
-                                  </span>
-                                </div>
-                                {event.waktu_absen && (
-                                  <div className="flex items-center text-sm text-emerald-600 mt-2">
-                                    <CheckCircle2 className="h-4 w-4 mr-3 flex-shrink-0" />
-                                    <span className="font-medium">
-                                      Hadir pada {new Date(event.waktu_absen).toLocaleString('id-ID', {
-                                        day: 'numeric',
-                                        month: 'long',
-                                        year: 'numeric',
-                                        hour: '2-digit',
-                                        minute: '2-digit'
-                                      })} WIB
+                                <div className="space-y-2 mt-4">
+                                  <div className="flex items-center text-sm text-gray-600">
+                                    <Calendar className="h-4 w-4 mr-3 text-primary flex-shrink-0" />
+                                    <span className="font-medium text-gray-700">
+                                      {EventService.isSameDay(event.waktu_mulai, event.waktu_berakhir) ? (
+                                        <>
+                                          {EventService.formatEventDate(event.waktu_mulai)}
+                                          <span className="ml-2 text-gray-500">
+                                            ({EventService.formatEventTime(event.waktu_mulai)} - {EventService.formatEventTime(event.waktu_berakhir)} WIB)
+                                          </span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          {EventService.formatEventDate(event.waktu_mulai)} - {EventService.formatEventDate(event.waktu_berakhir)}
+                                        </>
+                                      )}
                                     </span>
                                   </div>
+                                  <div className="flex items-center text-sm text-gray-600">
+                                    <MapPin className="h-4 w-4 mr-3 text-primary flex-shrink-0" />
+                                    <span className="font-medium text-gray-700">
+                                      {event.lokasi_kegiatan}
+                                    </span>
+                                  </div>
+                                  {event.waktu_absen && (
+                                    <div className="flex items-center text-sm text-emerald-600 mt-2">
+                                      <CheckCircle2 className="h-4 w-4 mr-3 flex-shrink-0" />
+                                      <span className="font-medium">
+                                        Hadir pada {new Date(event.waktu_absen).toLocaleString('id-ID', {
+                                          day: 'numeric',
+                                          month: 'long',
+                                          year: 'numeric',
+                                          hour: '2-digit',
+                                          minute: '2-digit'
+                                        })} WIB
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex flex-col gap-2 md:justify-center">
+                                <Button
+                                  onClick={() => router.push(`/event/${event.slug}`)}
+                                  variant="outline"
+                                  className="w-full md:w-auto"
+                                >
+                                  Lihat Detail
+                                </Button>
+                                {canDownloadCertificate && (
+                                  <Button
+                                    onClick={async () => {
+                                      try {
+                                        // If event has legacy sertifikat_kegiatan file, open it directly
+                                        if (event.sertifikat_kegiatan && !event.certificate_template_id) {
+                                          window.open(event.sertifikat_kegiatan, '_blank');
+                                          return;
+                                        }
+                                        
+                                        // Use certificate generation endpoint (works with template or default template)
+                                        const token = localStorage.getItem('accessToken');
+                                        const API_BASE_URL = process.env.NEXT_PUBLIC_API_KEY;
+                                        
+                                        // If attendance_id is not available, we need to fetch it first
+                                        let finalAttendanceId = attendanceId;
+                                        if (!finalAttendanceId) {
+                                          // Try to get attendance_id from event detail
+                                          try {
+                                            const eventDetailResponse = await fetch(`${API_BASE_URL}/event/${event.slug}`, {
+                                              headers: {
+                                                'Authorization': `Bearer ${token}`
+                                              }
+                                            });
+                                            if (eventDetailResponse.ok) {
+                                              const eventDetail = await eventDetailResponse.json();
+                                              // Try to get attendance_id from user's events
+                                              const userEventsResponse = await fetch(`${API_BASE_URL}/user/events/history`, {
+                                                headers: {
+                                                  'Authorization': `Bearer ${token}`
+                                                }
+                                              });
+                                              if (userEventsResponse.ok) {
+                                                const userEvents = await userEventsResponse.json();
+                                                const currentEvent = userEvents.data?.find((e: any) => e.id === event.id);
+                                                if (currentEvent?.attendance_id) {
+                                                  finalAttendanceId = currentEvent.attendance_id;
+                                                }
+                                              }
+                                            }
+                                          } catch (err) {
+                                            console.error('Error fetching attendance_id:', err);
+                                          }
+                                        }
+                                        
+                                        if (!finalAttendanceId) {
+                                          alert('Tidak dapat menemukan data kehadiran. Silakan coba lagi.');
+                                          return;
+                                        }
+                                        
+                                        const downloadUrl = `${API_BASE_URL}/certificate/download/${finalAttendanceId}`;
+                                        
+                                        // Add authorization header via fetch
+                                        const response = await fetch(downloadUrl, {
+                                          headers: {
+                                            'Authorization': `Bearer ${token}`
+                                          }
+                                        });
+                                        
+                                        if (response.ok) {
+                                          // Check if response is actually a PDF or JSON error
+                                          const contentType = response.headers.get('content-type');
+                                          if (contentType && contentType.includes('application/json')) {
+                                            // It's a JSON error response, not a PDF
+                                            const errorData = await response.json();
+                                            alert(errorData.message || 'Gagal mengunduh sertifikat. Silakan coba lagi.');
+                                            return;
+                                          }
+                                          
+                                          const blob = await response.blob();
+                                          const url = window.URL.createObjectURL(blob);
+                                          const link = document.createElement('a');
+                                          link.href = url;
+                                          link.setAttribute('download', `sertifikat-${event.judul_kegiatan.replace(/\s+/g, '-')}.pdf`);
+                                          document.body.appendChild(link);
+                                          link.click();
+                                          document.body.removeChild(link);
+                                          window.URL.revokeObjectURL(url);
+                                        } else {
+                                          // Handle error response
+                                          let errorMessage = 'Gagal mengunduh sertifikat. Silakan coba lagi.';
+                                          try {
+                                            const errorData = await response.json();
+                                            errorMessage = errorData.message || errorData.error || errorMessage;
+                                          } catch (e) {
+                                            // If response is not JSON, use status text
+                                            errorMessage = response.status === 404 
+                                              ? 'Template sertifikat tidak ditemukan. Silakan hubungi administrator untuk membuat template default.'
+                                              : `Error ${response.status}: ${response.statusText}`;
+                                          }
+                                          alert(errorMessage);
+                                        }
+                                      } catch (error) {
+                                        console.error('Error downloading certificate:', error);
+                                        alert('Gagal mengunduh sertifikat. Silakan coba lagi.');
+                                      }
+                                    }}
+                                    className="w-full md:w-auto bg-primary hover:bg-teal-700"
+                                  >
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Download Sertifikat
+                                  </Button>
                                 )}
                               </div>
                             </div>
-                            <div className="flex flex-col gap-2 md:justify-center">
-                              <Button
-                                onClick={() => router.push(`/event/${event.slug}`)}
-                                variant="outline"
-                                className="w-full md:w-auto"
-                              >
-                                Lihat Detail
-                              </Button>
-                              {event.sertifikat_kegiatan && (
-                                <Button
-                                  onClick={() => window.open(event.sertifikat_kegiatan, '_blank')}
-                                  className="w-full md:w-auto bg-primary hover:bg-teal-700"
-                                >
-                                  <Award className="h-4 w-4 mr-2" />
-                                  Lihat Sertifikat
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
+                          </CardContent>
+                        </Card>
+                      );
+                    })
                   )}
                 </div>
               )}

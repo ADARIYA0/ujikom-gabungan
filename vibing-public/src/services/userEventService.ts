@@ -10,6 +10,9 @@ export interface MyEvent extends Event {
 }
 
 export interface EventHistory extends Event {
+  attendance_id?: number;
+  attendance_status?: 'hadir' | 'tidak-hadir';
+  certificate_template_id?: number | null;
   waktu_absen: string;
   completed_at: string;
 }

@@ -17,7 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle,
-  XCircle
+  XCircle,
+  FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -48,6 +49,7 @@ export default function Sidebar({ className }: SidebarProps) {
     { id: 'events', label: 'Daftar Event', icon: Calendar, href: '/events' },
     { id: 'statistics', label: 'Statistik', icon: BarChart3, href: '/statistics' },
     { id: 'exports', label: 'Ekspor Data', icon: Download, href: '/exports' },
+    { id: 'global-templates', label: 'Global Templates', icon: FileText, href: '/certificate-templates/global' },
   ];
 
 
