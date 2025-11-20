@@ -21,7 +21,6 @@ export interface CreateEventPayload {
 
 export interface CreateEventFormData extends CreateEventPayload {
   flyer_kegiatan?: File | string;
-  gambar_kegiatan?: File | string;
   sertifikat_kegiatan?: File | string;
 }
 
@@ -67,7 +66,6 @@ export interface EventFormErrors {
   harga?: string;
   kategori_id?: string;
   flyer_kegiatan?: string;
-  gambar_kegiatan?: string;
   sertifikat_kegiatan?: string;
   general?: string;
 }

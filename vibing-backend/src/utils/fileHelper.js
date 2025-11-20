@@ -13,8 +13,6 @@ function cleanupFiles(filePaths = []) {
         fs.unlink(filePath, (err) => {
             if (err) {
                 logger.warn('Cleanup failed', { file: filePath, error: err.message });
-            } else {
-                logger.debug('File cleaned up', { file: filePath });
             }
         });
     });
@@ -53,7 +51,6 @@ async function renameUploadedFileToSlug(fileObj, destDir, baseName) {
 
     await fsPromises.rename(fileObj.path, destPath);
 
-    logger.debug('File renamed to slug name', { from: fileObj.path, to: destPath });
     return { filename, path: destPath };
 }
 

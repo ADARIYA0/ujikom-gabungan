@@ -181,8 +181,6 @@ export default function LoginPage() {
             await login(identifier.trim(), password);
             // Redirect will be handled by AuthContext
         } catch (error) {
-            console.error('Login error:', error);
-
             if (error instanceof Error) {
                 setError(error.message);
             } else {

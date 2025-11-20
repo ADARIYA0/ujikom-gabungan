@@ -1,5 +1,5 @@
-const { Admin } = require('../entities/Auth/Admin');
-const { AdminToken } = require('../entities/Auth/AdminToken');
+const Admin = require('../entities/Auth/Admin');
+const AdminToken = require('../entities/Auth/AdminToken');
 const { generateTokens } = require('../utils/tokenUtils');
 const { getRepository } = require('../utils/getRepository');
 const bcrypt = require('bcryptjs');
@@ -39,32 +39,48 @@ exports.loginAdmin = async (req, res) => {
         const adminRepository = getRepository(Admin);
         const adminTokenRepository = getRepository(AdminToken);
 
-        const { email, password } = req.body;
-        logger.info(`POST /auth/admin/login accessed, email=${email}`);
+        // Support both 'identifier' (email or username) and 'email' for backward compatibility
+        const { identifier, email, password } = req.body;
+        const loginIdentifier = identifier || email;
+        
+        logger.info(`POST /auth/admin/login accessed, identifier=${loginIdentifier}`);
 
+        if (!loginIdentifier || !password) {
+            return res.status(400).json({ message: 'Email/Username dan password diperlukan' });
+        }
+
+        // Try to find admin by email (since Admin entity only has email field)
+        // If identifier is provided, treat it as email
         const admin = await adminRepository
             .createQueryBuilder("admin")
             .addSelect("admin.password")
-            .where("admin.email = :email", { email })
+            .where("admin.email = :identifier", { identifier: loginIdentifier })
             .getOne();
 
         if (!admin) {
-            logger.warn(`Login failed: admin not found, email=${email}`);
+            logger.warn(`Login failed: admin not found, identifier=${loginIdentifier}`);
             return res.status(404).json({ message: 'Admin tidak ditemukan' });
         }
 
         /* if (admin.status_akun !== 'aktif') {
-            logger.warn(`Login failed: admin not active, email=${email}`);
+            logger.warn(`Login failed: admin not active, identifier=${loginIdentifier}`);
             return res.status(403).json({ message: 'Admin tidak aktif' });
         } */
 
         const isMatch = await bcrypt.compare(password, admin.password);
         if (!isMatch) {
-            logger.warn(`Login failed: wrong password, email=${email}`);
-            return res.status(400).json({ message: 'Password salah' });
+            logger.warn(`Login failed: wrong password, identifier=${loginIdentifier}`);
+            return res.status(400).json({ message: 'Email/Username atau password salah' });
         }
 
-        const { accessToken, refreshToken } = generateTokens(admin.id, 'admin');
+        // Prepare admin object for token generation
+        const adminForToken = {
+            id: admin.id,
+            email: admin.email,
+            role: 'admin'
+        };
+
+        const { accessToken, refreshToken } = generateTokens(adminForToken);
 
         const adminToken = adminTokenRepository.create({
             admin,
@@ -76,7 +92,7 @@ exports.loginAdmin = async (req, res) => {
         });
         await adminTokenRepository.save(adminToken);
 
-        logger.info(`Admin login successful: adminId=${admin.id}, email=${email}`);
+        logger.info(`Admin login successful: adminId=${admin.id}, email=${admin.email}`);
 
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
@@ -91,7 +107,8 @@ exports.loginAdmin = async (req, res) => {
             accessToken
         });
     } catch (error) {
-        logger.error(`loginAdmin error for email=${req.body.email}: ${error.message}`, { stack: error.stack });
+        const identifier = req.body.identifier || req.body.email || 'unknown';
+        logger.error(`loginAdmin error for identifier=${identifier}: ${error.message}`, { stack: error.stack });
         res.status(500).json({ message: 'Terjadi kesalahan', error: error.message });
     }
 };

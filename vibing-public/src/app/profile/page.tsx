@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -19,36 +19,42 @@ import {
   CheckCircle,
   Clock,
   MapPin,
-  LogOut
+  LogOut,
+  CheckCircle2,
+  CreditCard,
+  AlertCircle,
+  ExternalLink
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { EventService } from '@/services/eventService';
+import { PaymentService } from '@/services/paymentService';
+import { useMyEvents, useEventHistory, usePendingPayments } from '@/hooks/useUserEvents';
 
 export default function ProfilePage() {
   const router = useRouter();
   const { user, isLoggedIn, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'profile' | 'events' | 'certificates'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'events' | 'history' | 'certificates' | 'payments'>('profile');
+  
+  const { events: myEvents, loading: eventsLoading, refetch: refetchEvents } = useMyEvents();
+  const { events: eventHistory, loading: historyLoading, refetch: refetchHistory } = useEventHistory();
+  const { payments: pendingPayments, loading: paymentsLoading, refetch: refetchPayments } = usePendingPayments();
 
   // Redirect if not logged in
+  useEffect(() => {
+    if (!isLoggedIn) {
+      router.push('/login');
+    }
+  }, [isLoggedIn, router]);
+
+  // Don't render if not logged in
   if (!isLoggedIn) {
-    router.push('/login');
     return null;
   }
 
-  // Mock data - replace with actual API calls
-  const registeredEvents = [
-    {
-      id: 1,
-      judul_kegiatan: 'Workshop NodeJS',
-      slug: 'workshop-nodejs',
-      waktu_mulai: '2025-12-01T12:00:00',
-      lokasi_kegiatan: 'Aula Lantai 2',
-      kategori: { nama_kategori: 'Workshop' },
-      status: 'terdaftar'
-    }
-  ];
-
-  const completedEvents = [];
+  // Calculate statistics - ensure arrays
+  const registeredCount = Array.isArray(myEvents) ? myEvents.length : 0;
+  const completedCount = Array.isArray(eventHistory) ? eventHistory.length : 0;
+  const pendingPaymentsCount = Array.isArray(pendingPayments) ? pendingPayments.length : 0;
   const certificates = [];
 
   const handleBack = () => {
@@ -91,7 +97,7 @@ export default function ProfilePage() {
                         Member Aktif
                       </Badge>
                       <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm">
-                        {registeredEvents.length} Event Terdaftar
+                        {registeredCount} Event Terdaftar
                       </Badge>
                     </div>
                   </div>
@@ -122,9 +128,24 @@ export default function ProfilePage() {
                 }`}
               >
                 Event Saya
-                {registeredEvents.length > 0 && (
+                {registeredCount > 0 && (
                   <Badge className="ml-2 bg-primary text-white text-xs">
-                    {registeredEvents.length}
+                    {registeredCount}
+                  </Badge>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`px-6 py-3 font-semibold text-sm transition-colors relative ${
+                  activeTab === 'history'
+                    ? 'text-primary border-b-2 border-primary'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Riwayat Kegiatan
+                {completedCount > 0 && (
+                  <Badge className="ml-2 bg-primary text-white text-xs">
+                    {completedCount}
                   </Badge>
                 )}
               </button>
@@ -140,6 +161,21 @@ export default function ProfilePage() {
                 {certificates.length > 0 && (
                   <Badge className="ml-2 bg-primary text-white text-xs">
                     {certificates.length}
+                  </Badge>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('payments')}
+                className={`px-6 py-3 font-semibold text-sm transition-colors relative ${
+                  activeTab === 'payments'
+                    ? 'text-primary border-b-2 border-primary'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Pembayaran
+                {pendingPaymentsCount > 0 && (
+                  <Badge className="ml-2 bg-amber-500 text-white text-xs">
+                    {pendingPaymentsCount}
                   </Badge>
                 )}
               </button>
@@ -202,14 +238,14 @@ export default function ProfilePage() {
                             <Ticket className="h-5 w-5 text-primary" />
                             <span className="text-sm font-medium text-gray-600">Event Terdaftar</span>
                           </div>
-                          <p className="text-2xl font-bold text-gray-900">{registeredEvents.length}</p>
+                          <p className="text-2xl font-bold text-gray-900">{registeredCount}</p>
                         </div>
                         <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
                           <div className="flex items-center gap-3 mb-2">
                             <CheckCircle className="h-5 w-5 text-blue-600" />
                             <span className="text-sm font-medium text-gray-600">Event Selesai</span>
                           </div>
-                          <p className="text-2xl font-bold text-gray-900">{completedEvents.length}</p>
+                          <p className="text-2xl font-bold text-gray-900">{completedCount}</p>
                         </div>
                         <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
                           <div className="flex items-center gap-3 mb-2">
@@ -226,7 +262,25 @@ export default function ProfilePage() {
 
               {activeTab === 'events' && (
                 <div className="space-y-4">
-                  {registeredEvents.length === 0 ? (
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-gray-900">Event Saya</h2>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => refetchEvents()}
+                      disabled={eventsLoading}
+                    >
+                      {eventsLoading ? 'Memuat...' : 'Refresh'}
+                    </Button>
+                  </div>
+                  {eventsLoading ? (
+                    <Card className="border-0 shadow-medium">
+                      <CardContent className="py-12 text-center">
+                        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+                        <p className="text-gray-600">Memuat event...</p>
+                      </CardContent>
+                    </Card>
+                  ) : !Array.isArray(myEvents) || myEvents.length === 0 ? (
                     <Card className="border-0 shadow-medium">
                       <CardContent className="py-12 text-center">
                         <Calendar className="h-16 w-16 mx-auto mb-4 text-gray-300" />
@@ -242,7 +296,150 @@ export default function ProfilePage() {
                       </CardContent>
                     </Card>
                   ) : (
-                    registeredEvents.map((event) => (
+                    (Array.isArray(myEvents) ? myEvents : []).map((event) => {
+                      const isCheckedIn = event.attendance_status === 'hadir';
+                      const canCheckIn = event.is_event_started && !event.is_event_passed && !isCheckedIn;
+                      
+                      return (
+                        <Card key={event.id} className="border-0 shadow-medium hover:shadow-large transition-shadow">
+                          <CardContent className="p-6">
+                            <div className="flex flex-col md:flex-row gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-start justify-between mb-3">
+                                  <div>
+                                    <h3 className="text-lg font-bold text-gray-900 mb-1">
+                                      {event.judul_kegiatan}
+                                    </h3>
+                                    <Badge className={`${EventService.getCategoryColor(event.kategori?.nama_kategori || '')} border`}>
+                                      {event.kategori?.nama_kategori || 'Umum'}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-2">
+                                    <Badge className={`${
+                                      isCheckedIn 
+                                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+                                        : 'bg-blue-100 text-blue-700 border-blue-200'
+                                    }`}>
+                                      {isCheckedIn ? 'Sudah Hadir' : 'Terdaftar'}
+                                    </Badge>
+                                    {!isCheckedIn && event.is_event_passed && (
+                                      <Badge className="bg-gray-100 text-gray-600 border-gray-200 text-xs">
+                                        Belum Isi Kehadiran
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="space-y-2 mt-4">
+                                  <div className="flex items-center text-sm text-gray-600">
+                                    <Calendar className="h-4 w-4 mr-3 text-primary flex-shrink-0" />
+                                    <span className="font-medium text-gray-700">
+                                      {EventService.formatEventDate(event.waktu_mulai)}
+                                      {EventService.isSameDay(event.waktu_mulai, event.waktu_berakhir) && (
+                                        <span className="ml-2 text-gray-500">
+                                          • Selesai: {EventService.formatEventTime(event.waktu_berakhir)} WIB
+                                        </span>
+                                      )}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center text-sm text-gray-600">
+                                    <Clock className="h-4 w-4 mr-3 text-primary flex-shrink-0" />
+                                    <span className="font-medium text-gray-700">
+                                      {EventService.formatEventTime(event.waktu_mulai)} WIB
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center text-sm text-gray-600">
+                                    <MapPin className="h-4 w-4 mr-3 text-primary flex-shrink-0" />
+                                    <span className="font-medium text-gray-700">
+                                      {event.lokasi_kegiatan}
+                                    </span>
+                                  </div>
+                                  {isCheckedIn && event.waktu_absen && (
+                                    <div className="flex items-center text-sm text-emerald-600 mt-2">
+                                      <CheckCircle2 className="h-4 w-4 mr-3 flex-shrink-0" />
+                                      <span className="font-medium">
+                                        Hadir pada {new Date(event.waktu_absen).toLocaleString('id-ID', {
+                                          day: 'numeric',
+                                          month: 'long',
+                                          year: 'numeric',
+                                          hour: '2-digit',
+                                          minute: '2-digit'
+                                        })} WIB
+                                      </span>
+                                    </div>
+                                  )}
+                                  {!isCheckedIn && canCheckIn && (
+                                    <div className="flex items-center text-sm text-amber-600 mt-2">
+                                      <Clock className="h-4 w-4 mr-3 flex-shrink-0" />
+                                      <span className="font-medium">
+                                        Belum isi daftar hadir - Event sudah dimulai
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex flex-col gap-2 md:justify-center">
+                                <Button
+                                  onClick={() => router.push(`/event/${event.slug}`)}
+                                  variant="outline"
+                                  className="w-full md:w-auto"
+                                >
+                                  Lihat Detail
+                                </Button>
+                                {canCheckIn && (
+                                  <Button
+                                    onClick={() => router.push(`/event/${event.slug}`)}
+                                    className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700"
+                                  >
+                                    Isi Daftar Hadir
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'history' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-gray-900">Riwayat Kegiatan</h2>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => refetchHistory()}
+                      disabled={historyLoading}
+                    >
+                      {historyLoading ? 'Memuat...' : 'Refresh'}
+                    </Button>
+                  </div>
+                  {historyLoading ? (
+                    <Card className="border-0 shadow-medium">
+                      <CardContent className="py-12 text-center">
+                        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+                        <p className="text-gray-600">Memuat riwayat...</p>
+                      </CardContent>
+                    </Card>
+                  ) : !Array.isArray(eventHistory) || eventHistory.length === 0 ? (
+                    <Card className="border-0 shadow-medium">
+                      <CardContent className="py-12 text-center">
+                        <Award className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                        <p className="text-lg font-semibold text-gray-600 mb-2">
+                          Belum Ada Riwayat Kegiatan
+                        </p>
+                        <p className="text-sm text-gray-500 mb-6">
+                          Riwayat kegiatan akan muncul setelah Anda menyelesaikan event
+                        </p>
+                        <Button onClick={() => router.push('/event')}>
+                          Cari Event
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    (Array.isArray(eventHistory) ? eventHistory : []).map((event) => (
                       <Card key={event.id} className="border-0 shadow-medium hover:shadow-large transition-shadow">
                         <CardContent className="p-6">
                           <div className="flex flex-col md:flex-row gap-4">
@@ -257,20 +454,26 @@ export default function ProfilePage() {
                                   </Badge>
                                 </div>
                                 <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
-                                  Terdaftar
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Selesai
                                 </Badge>
                               </div>
                               <div className="space-y-2 mt-4">
                                 <div className="flex items-center text-sm text-gray-600">
                                   <Calendar className="h-4 w-4 mr-3 text-primary flex-shrink-0" />
                                   <span className="font-medium text-gray-700">
-                                    {EventService.formatEventDate(event.waktu_mulai)}
-                                  </span>
-                                </div>
-                                <div className="flex items-center text-sm text-gray-600">
-                                  <Clock className="h-4 w-4 mr-3 text-primary flex-shrink-0" />
-                                  <span className="font-medium text-gray-700">
-                                    {EventService.formatEventTime(event.waktu_mulai)} WIB
+                                    {EventService.isSameDay(event.waktu_mulai, event.waktu_berakhir) ? (
+                                      <>
+                                        {EventService.formatEventDate(event.waktu_mulai)}
+                                        <span className="ml-2 text-gray-500">
+                                          ({EventService.formatEventTime(event.waktu_mulai)} - {EventService.formatEventTime(event.waktu_berakhir)} WIB)
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        {EventService.formatEventDate(event.waktu_mulai)} - {EventService.formatEventDate(event.waktu_berakhir)}
+                                      </>
+                                    )}
                                   </span>
                                 </div>
                                 <div className="flex items-center text-sm text-gray-600">
@@ -279,6 +482,20 @@ export default function ProfilePage() {
                                     {event.lokasi_kegiatan}
                                   </span>
                                 </div>
+                                {event.waktu_absen && (
+                                  <div className="flex items-center text-sm text-emerald-600 mt-2">
+                                    <CheckCircle2 className="h-4 w-4 mr-3 flex-shrink-0" />
+                                    <span className="font-medium">
+                                      Hadir pada {new Date(event.waktu_absen).toLocaleString('id-ID', {
+                                        day: 'numeric',
+                                        month: 'long',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })} WIB
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="flex flex-col gap-2 md:justify-center">
@@ -289,6 +506,15 @@ export default function ProfilePage() {
                               >
                                 Lihat Detail
                               </Button>
+                              {event.sertifikat_kegiatan && (
+                                <Button
+                                  onClick={() => window.open(event.sertifikat_kegiatan, '_blank')}
+                                  className="w-full md:w-auto bg-primary hover:bg-teal-700"
+                                >
+                                  <Award className="h-4 w-4 mr-2" />
+                                  Lihat Sertifikat
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </CardContent>
@@ -310,6 +536,198 @@ export default function ProfilePage() {
                     </p>
                   </CardContent>
                 </Card>
+              )}
+
+              {activeTab === 'payments' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-gray-900">Pembayaran</h2>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => refetchPayments()}
+                      disabled={paymentsLoading}
+                    >
+                      {paymentsLoading ? 'Memuat...' : 'Refresh'}
+                    </Button>
+                  </div>
+                  {paymentsLoading ? (
+                    <Card className="border-0 shadow-medium">
+                      <CardContent className="py-12 text-center">
+                        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+                        <p className="text-gray-600">Memuat pembayaran...</p>
+                      </CardContent>
+                    </Card>
+                  ) : !Array.isArray(pendingPayments) || pendingPayments.length === 0 ? (
+                    <Card className="border-0 shadow-medium">
+                      <CardContent className="py-12 text-center">
+                        <CreditCard className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                        <p className="text-lg font-semibold text-gray-600 mb-2">
+                          Tidak Ada Pembayaran
+                        </p>
+                        <p className="text-sm text-gray-500 mb-6">
+                          Belum ada pembayaran untuk kegiatan berbayar.
+                        </p>
+                        <Button onClick={() => router.push('/event')}>
+                          Cari Event
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    (Array.isArray(pendingPayments) ? pendingPayments : []).map((payment) => {
+                      const isPaid = payment.status === 'paid';
+                      const isExpired = payment.status === 'expired' || payment.status === 'failed';
+                      const isPending = payment.status === 'pending';
+                      const expiresAt = payment.expiresAt ? new Date(payment.expiresAt) : null;
+                      const isExpiringSoon = expiresAt && expiresAt > new Date() && expiresAt.getTime() - new Date().getTime() < 24 * 60 * 60 * 1000; // Less than 24 hours
+                      
+                      return (
+                        <Card key={payment.paymentId} className={`border-0 shadow-medium hover:shadow-large transition-shadow ${
+                          isPaid ? 'border-emerald-200 bg-emerald-50/50' :
+                          isExpired ? 'border-red-200 bg-red-50/50' : 
+                          isExpiringSoon ? 'border-amber-200 bg-amber-50/50' : ''
+                        }`}>
+                          <CardContent className="p-6">
+                            <div className="flex flex-col md:flex-row gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-start justify-between mb-3">
+                                  <div>
+                                    <h3 className="text-lg font-bold text-gray-900 mb-1">
+                                      {payment.event?.judul_kegiatan || 'Event Tidak Ditemukan'}
+                                    </h3>
+                                    {payment.event?.kategori && (
+                                      <Badge className={`${EventService.getCategoryColor(payment.event.kategori.nama_kategori)} border`}>
+                                        {payment.event.kategori.nama_kategori}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-col items-end gap-2">
+                                    <Badge className={`${
+                                      isPaid
+                                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                        : isExpired 
+                                        ? 'bg-red-100 text-red-700 border-red-200' 
+                                        : isPending
+                                        ? 'bg-amber-100 text-amber-700 border-amber-200'
+                                        : 'bg-gray-100 text-gray-600 border-gray-200'
+                                    }`}>
+                                      {isPaid ? 'Sudah Dibayar' : isExpired ? 'Kedaluwarsa' : isPending ? 'Menunggu Pembayaran' : payment.status}
+                                    </Badge>
+                                    <div className="text-right">
+                                      <p className="text-2xl font-bold text-primary">
+                                        {PaymentService.formatAmount(payment.amount)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                                {payment.event && (
+                                  <div className="space-y-2 mt-4">
+                                    <div className="flex items-center text-sm text-gray-600">
+                                      <Calendar className="h-4 w-4 mr-3 text-primary flex-shrink-0" />
+                                      <span className="font-medium text-gray-700">
+                                        {EventService.formatEventDate(payment.event.waktu_mulai)}
+                                        {EventService.isSameDay(payment.event.waktu_mulai, payment.event.waktu_berakhir) && (
+                                          <span className="ml-2 text-gray-500">
+                                            • {EventService.formatEventTime(payment.event.waktu_mulai)} WIB
+                                          </span>
+                                        )}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center text-sm text-gray-600">
+                                      <MapPin className="h-4 w-4 mr-3 text-primary flex-shrink-0" />
+                                      <span className="font-medium text-gray-700">
+                                        {payment.event.lokasi_kegiatan}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {isPaid && payment.paidAt && (
+                                  <div className="flex items-center text-sm text-emerald-600 mt-2">
+                                    <CheckCircle2 className="h-4 w-4 mr-3 flex-shrink-0" />
+                                    <span className="font-medium">
+                                      Dibayar pada {new Date(payment.paidAt).toLocaleString('id-ID', {
+                                        day: 'numeric',
+                                        month: 'long',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })} WIB
+                                    </span>
+                                  </div>
+                                )}
+                                {expiresAt && isPending && (
+                                  <div className={`flex items-center text-sm mt-2 ${
+                                    isExpiringSoon ? 'text-amber-600' : 'text-gray-600'
+                                  }`}>
+                                    <Clock className="h-4 w-4 mr-3 flex-shrink-0" />
+                                    <span className="font-medium">
+                                      {isExpired ? 'Kedaluwarsa pada ' : 'Batas waktu: '}
+                                      {expiresAt.toLocaleString('id-ID', {
+                                        day: 'numeric',
+                                        month: 'long',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })} WIB
+                                    </span>
+                                  </div>
+                                )}
+                                {isExpired && (
+                                  <div className="flex items-center text-sm text-red-600 mt-2">
+                                    <AlertCircle className="h-4 w-4 mr-3 flex-shrink-0" />
+                                    <span className="font-medium">
+                                      Pembayaran telah kedaluwarsa. Silakan daftar ulang untuk event ini.
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex flex-col gap-2 md:justify-center">
+                                {payment.event && (
+                                  <Button
+                                    onClick={() => router.push(`/event/${payment.event.slug}`)}
+                                    variant="outline"
+                                    className="w-full md:w-auto"
+                                  >
+                                    Lihat Detail Event
+                                  </Button>
+                                )}
+                                {isPending && (
+                                  <Button
+                                    onClick={() => router.push(`/payment?payment_id=${payment.paymentId}${payment.event ? `&event_id=${payment.event.id}` : ''}`)}
+                                    className="w-full md:w-auto bg-primary hover:bg-teal-700"
+                                  >
+                                    <CreditCard className="h-4 w-4 mr-2" />
+                                    Lanjutkan Pembayaran
+                                  </Button>
+                                )}
+                                {isPaid && (
+                                  <Button
+                                    onClick={() => router.push(`/payment/success?payment_id=${payment.paymentId}`)}
+                                    variant="outline"
+                                    className="w-full md:w-auto border-emerald-600 text-emerald-600 hover:bg-emerald-50"
+                                  >
+                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                    Lihat Detail Pembayaran
+                                  </Button>
+                                )}
+                                {payment.invoiceUrl && (
+                                  <Button
+                                    onClick={() => window.open(payment.invoiceUrl!, '_blank')}
+                                    variant="outline"
+                                    className="w-full md:w-auto"
+                                  >
+                                    <ExternalLink className="h-4 w-4 mr-2" />
+                                    Buka Invoice
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
+                </div>
               )}
             </div>
 

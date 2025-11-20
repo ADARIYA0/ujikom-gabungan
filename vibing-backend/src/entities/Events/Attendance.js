@@ -46,6 +46,11 @@ module.exports = new EntitySchema({
             type: 'many-to-one',
             joinColumn: { name: 'kegiatan_id' },
             inverseSide: 'attendance'
+        },
+        payment: {
+            target: 'Payment',
+            type: 'one-to-one',
+            inverseSide: 'attendance'
         }
     }
 });

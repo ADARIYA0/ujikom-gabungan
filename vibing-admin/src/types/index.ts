@@ -13,6 +13,8 @@ export interface Event {
   participants: number;
   capacity: number;
   status: 'upcoming' | 'ongoing' | 'completed';
+  price?: number;
+  kategori_id?: number;
 }
 
 export interface Participant {

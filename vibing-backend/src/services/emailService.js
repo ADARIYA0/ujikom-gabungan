@@ -173,8 +173,7 @@ async function sendEventTokenEmail(to, token, eventTitle, expiresMinutes = 15) {
   };
 
   try {
-    logger.info(`Attempting to send event token email to ${to} for event: ${eventTitle}`);
-    logger.debug(`Email configuration: host=${process.env.EMAIL_HOST}, port=${process.env.EMAIL_PORT}, from=${process.env.EMAIL_FROM}`);
+    logger.info(`Attempting to send event token email for event: ${eventTitle}`);
     
     const info = await transporter.sendMail(mailOptions);
     

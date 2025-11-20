@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
@@ -46,15 +46,23 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
     const { isAuthenticated, isLoading } = useAuth();
     const router = useRouter();
+    const [shouldRedirect, setShouldRedirect] = useState(false);
+
+    // Handle redirect in useEffect to avoid updating Router during render
+    useEffect(() => {
+        if (!isLoading && !isAuthenticated) {
+            setShouldRedirect(true);
+            router.push('/login');
+        }
+    }, [isLoading, isAuthenticated, router]);
 
     // Show loading screen while checking authentication
     if (isLoading) {
         return <>{fallback}</>;
     }
 
-    // Redirect to login if not authenticated
-    if (!isAuthenticated) {
-        router.push('/login');
+    // Show loading screen while redirecting
+    if (shouldRedirect || !isAuthenticated) {
         return <>{fallback}</>;
     }
 

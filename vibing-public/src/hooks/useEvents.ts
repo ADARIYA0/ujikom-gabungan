@@ -134,7 +134,15 @@ export function useEventRegistration() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const registerEvent = async (eventId: number): Promise<{ success: boolean; message: string }> => {
+  const registerEvent = async (eventId: number): Promise<{ 
+    success: boolean; 
+    message: string;
+    data?: {
+      attendanceId?: number;
+      requiresPayment?: boolean;
+      amount?: number;
+    };
+  }> => {
     try {
       setIsRegistering(true);
       setError(null);

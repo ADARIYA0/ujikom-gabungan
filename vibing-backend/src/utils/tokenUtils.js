@@ -47,7 +47,6 @@ function generateTokens(user) {
         { expiresIn: process.env.JWT_REFRESH_EXPIRES }
     );
 
-    logger.debug(`Generated tokens for userId=${user.id}, email=${user.email}, role=${user.role}`);
     return { accessToken, refreshToken };
 }
 

@@ -6,7 +6,6 @@ export interface ApiEvent {
   deskripsi_kegiatan: string;
   lokasi_kegiatan: string;
   flyer_kegiatan: string | null;
-  gambar_kegiatan: string | null;
   sertifikat_kegiatan: string | null;
   kapasitas_peserta: number;
   harga: number;
@@ -37,7 +36,6 @@ export interface ApiSingleEventResponse {
   deskripsi_kegiatan: string;
   lokasi_kegiatan: string;
   flyer_kegiatan: string | null;
-  gambar_kegiatan: string | null;
   sertifikat_kegiatan: string | null;
   kapasitas_peserta: number;
   harga: number;

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { AuthDebug } from "@/components/AuthDebug";
 import URLValidator from "@/components/URLValidator";
 import { ToastProvider } from "@/components/ui/toast";
 
@@ -40,7 +39,6 @@ export default function RootLayout({
             <URLValidator>
               {children}
             </URLValidator>
-            <AuthDebug />
           </ToastProvider>
         </AuthProvider>
       </body>

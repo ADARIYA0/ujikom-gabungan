@@ -25,11 +25,14 @@ import {
   Ticket,
   Globe,
   Phone,
-  Mail
+  Mail,
+  CreditCard,
+  Loader2
 } from 'lucide-react';
 import { useEventBySlug, useEventRegistration, useEventCheckIn } from '@/hooks/useEvents';
 import { useAuth } from '@/contexts/AuthContext';
 import { EventService } from '@/services/eventService';
+import { PaymentService } from '@/services/paymentService';
 import { Event, User } from '@/types';
 import { useToast } from '@/components/ui/toast';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
@@ -50,6 +53,7 @@ export default function EventDetailPage() {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [isLoadingPayment, setIsLoadingPayment] = useState(false);
 
   const fromPage = searchParams.get('from') || 'home';
   const currentView = fromPage === 'event' ? 'search' : 'home';
@@ -101,6 +105,7 @@ export default function EventDetailPage() {
   const attendanceStatus = event.attendance_status;
   const availableSlots = event.kapasitas_peserta - event.attendee_count;
   const categoryName = event.kategori?.nama_kategori || 'Umum';
+  const isPaidEvent = event.harga && (typeof event.harga === 'number' ? event.harga > 0 : parseFloat(String(event.harga)) > 0);
 
   const handleRegister = async () => {
     if (!isLoggedIn) {
@@ -113,6 +118,18 @@ export default function EventDetailPage() {
     const result = await registerEvent(event.id);
 
     if (result.success) {
+      // If payment is required, redirect to payment page immediately
+      if (result.data?.requiresPayment) {
+        // Don't show toast or dialog, redirect immediately
+        // Use eventId if available (new flow), otherwise use attendanceId (backward compatibility)
+        const paymentParam = result.data.eventId 
+          ? `event_id=${result.data.eventId}` 
+          : `attendance_id=${result.data.attendanceId}`;
+        router.push(`/payment?${paymentParam}`);
+        return;
+      }
+
+      // For free events, show success toast and dialog
       toast({
         variant: 'success',
         title: 'Pendaftaran Berhasil!',
@@ -187,6 +204,34 @@ export default function EventDetailPage() {
     router.back();
   };
 
+  const handleViewPaymentStatus = async () => {
+    if (!event) return;
+    
+    setIsLoadingPayment(true);
+    try {
+      const result = await PaymentService.getPaymentByEventId(event.id);
+      
+      if (result.success && result.data) {
+        // Redirect to payment page with payment_id and event_id for context
+        router.push(`/payment?payment_id=${result.data.paymentId}&event_id=${event.id}`);
+      } else {
+        toast({
+          variant: 'error',
+          title: 'Gagal Memuat Status Pembayaran',
+          description: result.message || 'Tidak dapat menemukan data pembayaran untuk event ini.',
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: 'error',
+        title: 'Terjadi Kesalahan',
+        description: 'Gagal memuat status pembayaran. Silakan coba lagi.',
+      });
+    } finally {
+      setIsLoadingPayment(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header currentView={currentView} />
@@ -239,10 +284,18 @@ export default function EventDetailPage() {
                   {categoryName}
                 </Badge>
               </div>
-              {isEventFull && (
-                <div className="absolute top-4 right-4">
+              {isEventPassed && (
+                <div className="absolute top-4 right-4 z-10">
+                  <Badge className="bg-gray-600 text-white border-gray-600">Event Tertutup</Badge>
+                </div>
+              )}
+              {!isEventPassed && isEventFull && (
+                <div className="absolute top-4 right-4 z-10">
                   <Badge className="bg-red-500 text-white border-red-500">Event Penuh</Badge>
                 </div>
+              )}
+              {isEventPassed && (
+                <div className="absolute inset-0 bg-black/30 rounded-2xl z-0"></div>
               )}
             </div>
 
@@ -361,7 +414,7 @@ export default function EventDetailPage() {
                   <div className="space-y-3">
                     <Button 
                       className="w-full bg-primary hover:bg-teal-700 text-white font-semibold py-3"
-                      onClick={() => router.push('/login')}
+                      onClick={() => router.push(`/login?returnUrl=${encodeURIComponent(`/event/${event.slug}?from=${fromPage}`)}`)}
                     >
                       Masuk untuk Mendaftar
                     </Button>
@@ -372,17 +425,38 @@ export default function EventDetailPage() {
                 ) : (
                   <div className="space-y-3">
                     {isRegistered ? (
-                      attendanceStatus === 'hadir' ? (
-                        <Button disabled className="w-full bg-emerald-600 text-white font-semibold py-3">
-                          <Check className="h-4 w-4 mr-2" />
-                          Sudah Hadir
-                        </Button>
-                      ) : !isEventStarted ? (
-                        <Button disabled className="w-full bg-gray-400 text-white font-semibold py-3">
-                          <Clock className="h-4 w-4 mr-2" />
-                          Belum Waktunya Check-in
-                        </Button>
-                      ) : (
+                      <>
+                        {isPaidEvent && (
+                          <Button 
+                            onClick={handleViewPaymentStatus}
+                            disabled={isLoadingPayment}
+                            variant="outline"
+                            className="w-full border-teal-600 text-teal-600 hover:bg-teal-50 font-semibold py-3"
+                          >
+                            {isLoadingPayment ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Memuat...
+                              </>
+                            ) : (
+                              <>
+                                <CreditCard className="h-4 w-4 mr-2" />
+                                Lihat Status Pembayaran
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        {attendanceStatus === 'hadir' ? (
+                          <Button disabled className="w-full bg-emerald-600 text-white font-semibold py-3">
+                            <Check className="h-4 w-4 mr-2" />
+                            Sudah Hadir
+                          </Button>
+                        ) : !isEventStarted ? (
+                          <Button disabled className="w-full bg-gray-400 text-white font-semibold py-3">
+                            <Clock className="h-4 w-4 mr-2" />
+                            Belum Waktunya Check-in
+                          </Button>
+                        ) : (
                         <Dialog open={showCheckInDialog} onOpenChange={setShowCheckInDialog}>
                           <DialogTrigger asChild>
                             <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3">
@@ -436,61 +510,75 @@ export default function EventDetailPage() {
                                 {isCheckingIn ? 'Memproses...' : 'Konfirmasi Absensi'}
                               </Button>
                             </div>
+                            </DialogContent>
+                        </Dialog>
+                        )}
+                      </>
+                    ) : !isEventFull && !isEventPassed && !isEventStarted ? (
+                      isPaidEvent ? (
+                        // For paid events, directly call handleRegister (will redirect to payment)
+                        <Button 
+                          onClick={handleRegister}
+                          disabled={isRegistering}
+                          className="w-full bg-primary hover:bg-teal-700 text-white font-semibold py-3"
+                        >
+                          <Ticket className="h-4 w-4 mr-2" />
+                          {isRegistering ? 'Memproses...' : 'Bayar Sekarang'}
+                        </Button>
+                      ) : (
+                        // For free events, show confirmation dialog
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button className="w-full bg-primary hover:bg-teal-700 text-white font-semibold py-3">
+                              <Ticket className="h-4 w-4 mr-2" />
+                              Daftar Sekarang
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Konfirmasi Pendaftaran</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div className="p-4 bg-teal-50 rounded-lg">
+                                <h4 className="font-medium text-teal-900 mb-1">{event.judul_kegiatan}</h4>
+                                <p className="text-sm text-teal-700">{EventService.formatEventDate(event.waktu_mulai)} • {EventService.formatEventTime(event.waktu_mulai)} WIB</p>
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <Label htmlFor="token">Token Pendaftaran (Opsional)</Label>
+                                <Input
+                                  id="token"
+                                  placeholder="Masukkan token jika ada"
+                                  value={registrationToken}
+                                  onChange={(e) => setRegistrationToken(e.target.value)}
+                                />
+                                <p className="text-xs text-gray-500">
+                                  Token khusus dari sponsor atau partner
+                                </p>
+                              </div>
+
+                              <div className="flex items-start gap-2 p-3 bg-yellow-50 rounded-lg">
+                                <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                                <div className="text-sm text-yellow-800">
+                                  <p className="font-medium mb-1">Perhatian:</p>
+                                  <p>Pendaftaran tidak dapat dibatalkan. Pastikan Anda dapat menghadiri event ini.</p>
+                                </div>
+                              </div>
+
+                              <Button
+                                onClick={handleRegister}
+                                disabled={isRegistering}
+                                className="w-full bg-primary hover:bg-teal-700"
+                              >
+                                {isRegistering ? 'Mendaftar...' : 'Konfirmasi Pendaftaran'}
+                              </Button>
+                            </div>
                           </DialogContent>
                         </Dialog>
                       )
-                    ) : !isEventFull && !isEventPassed ? (
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button className="w-full bg-primary hover:bg-teal-700 text-white font-semibold py-3">
-                            <Ticket className="h-4 w-4 mr-2" />
-                            Daftar Sekarang
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Konfirmasi Pendaftaran</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            <div className="p-4 bg-teal-50 rounded-lg">
-                              <h4 className="font-medium text-teal-900 mb-1">{event.judul_kegiatan}</h4>
-                              <p className="text-sm text-teal-700">{EventService.formatEventDate(event.waktu_mulai)} • {EventService.formatEventTime(event.waktu_mulai)} WIB</p>
-                            </div>
-                            
-                            <div className="space-y-2">
-                              <Label htmlFor="token">Token Pendaftaran (Opsional)</Label>
-                              <Input
-                                id="token"
-                                placeholder="Masukkan token jika ada"
-                                value={registrationToken}
-                                onChange={(e) => setRegistrationToken(e.target.value)}
-                              />
-                              <p className="text-xs text-gray-500">
-                                Token khusus dari sponsor atau partner
-                              </p>
-                            </div>
-
-                            <div className="flex items-start gap-2 p-3 bg-yellow-50 rounded-lg">
-                              <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
-                              <div className="text-sm text-yellow-800">
-                                <p className="font-medium mb-1">Perhatian:</p>
-                                <p>Pendaftaran tidak dapat dibatalkan. Pastikan Anda dapat menghadiri event ini.</p>
-                              </div>
-                            </div>
-
-                            <Button
-                              onClick={handleRegister}
-                              disabled={isRegistering}
-                              className="w-full bg-primary hover:bg-teal-700"
-                            >
-                              {isRegistering ? 'Mendaftar...' : 'Konfirmasi Pendaftaran'}
-                            </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
                     ) : (
                       <Button disabled className="w-full" variant="secondary">
-                        {isEventPassed ? 'Event Sudah Berlalu' : isEventFull ? 'Event Penuh' : 'Pendaftaran Ditutup'}
+                        {isEventPassed ? 'Event Sudah Berlalu' : isEventStarted ? 'Pendaftaran Ditutup' : isEventFull ? 'Event Penuh' : 'Pendaftaran Ditutup'}
                       </Button>
                     )}
                   </div>

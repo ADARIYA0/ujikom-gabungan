@@ -27,7 +27,6 @@ export function useTokenRefresh() {
         }
 
         if (!isAuthenticated) {
-            console.log('useTokenRefresh: User not authenticated, stopping token refresh');
             isRefreshingRef.current = false;
             return;
         }
@@ -35,13 +34,11 @@ export function useTokenRefresh() {
         const checkAndRefreshToken = async () => {
             // Double check authentication status before proceeding
             if (!isAuthenticated) {
-                console.log('useTokenRefresh: Authentication lost during check, stopping');
                 return;
             }
 
             // Prevent multiple simultaneous refresh attempts
             if (isRefreshingRef.current) {
-                console.log('useTokenRefresh: Refresh already in progress, skipping check');
                 return;
             }
 
@@ -50,16 +47,13 @@ export function useTokenRefresh() {
 
                 // If no token, don't attempt refresh
                 if (!accessToken) {
-                    console.log('useTokenRefresh: No access token found, skipping refresh');
                     return;
                 }
 
                 // Check if token is expired or will expire soon (within 5 minutes)
                 if (AuthApiService.isTokenExpired(accessToken)) {
-                    console.log('useTokenRefresh: Token expired, attempting refresh...');
                     isRefreshingRef.current = true;
                     await refreshToken();
-                    console.log('useTokenRefresh: Token refresh completed successfully');
                 } else {
                     // Check if token will expire in next 5 minutes
                     try {
@@ -77,42 +71,18 @@ export function useTokenRefresh() {
                             const currentTime = Date.now() / 1000;
                             const timeUntilExpiry = payload.exp - currentTime;
 
-                            // If token expires in less than 5 minutes, refresh it
-                            if (timeUntilExpiry < 300) { // 5 minutes
-                                console.log('useTokenRefresh: Token expiring soon, refreshing...', {
-                                    timeUntilExpiry: Math.floor(timeUntilExpiry),
-                                    expiresAt: new Date(payload.exp * 1000).toLocaleTimeString()
-                                });
-
+                            // If token expires in less than 10 minutes, refresh it proactively
+                            if (timeUntilExpiry < 600) { // 10 minutes
                                 isRefreshingRef.current = true;
                                 await refreshToken();
-                                console.log('useTokenRefresh: Proactive token refresh completed successfully');
                             }
                         }
                     } catch (decodeError) {
-                        console.error('useTokenRefresh: Error checking token expiry:', decodeError);
+                        // Silent fail - token refresh will retry on next check
                     }
                 }
             } catch (error) {
-                console.error('useTokenRefresh: Token refresh check failed:', error);
-
-                // Enhanced error handling - only logout for specific refresh token errors
-                if (error instanceof Error) {
-                    if (error.message.includes('Refresh token tidak ditemukan') ||
-                        error.message.includes('Refresh token tidak valid') ||
-                        error.message.includes('Refresh token kadaluarsa')) {
-                        console.log('useTokenRefresh: Refresh token invalid, but not auto-logging out');
-                        console.log('useTokenRefresh: Let user continue - HTTP interceptor will handle auth appropriately');
-                    } else if (error.message.includes('Failed to fetch') ||
-                        error.message.includes('Network') ||
-                        error.message.includes('Server error')) {
-                        console.log('useTokenRefresh: Network/server error, will retry on next check');
-                    } else {
-                        console.log('useTokenRefresh: Unknown error, will retry on next check:', error.message);
-                    }
-                } else {
-                    console.log('useTokenRefresh: Non-Error exception, will retry on next check');
-                }
+                // Silent fail - token refresh will retry on next check
             } finally {
                 isRefreshingRef.current = false;
             }
@@ -127,7 +97,6 @@ export function useTokenRefresh() {
                 if (isAuthenticated) {
                     checkAndRefreshToken();
                 } else {
-                    console.log('useTokenRefresh: Authentication lost, clearing interval');
                     if (intervalRef.current) {
                         clearInterval(intervalRef.current);
                         intervalRef.current = null;

@@ -1,18 +1,30 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Event } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { AnimatedDialog, AnimatedDialogContent, AnimatedDialogDescription, AnimatedDialogHeader, AnimatedDialogTitle } from './ui/animated-dialog';
-import { Calendar, Clock, MapPin, Users, Eye, Plus, Search, RefreshCw, AlertCircle, Image } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Eye, Plus, Search, RefreshCw, AlertCircle, Image, Edit, Trash2 } from 'lucide-react';
 import { Input } from './ui/input';
 import { useEvents } from '@/hooks/useEvents';
 import { useDebounce } from '@/hooks/useDebounce';
 import AnimatedEventForm from './AnimatedEventForm';
 import ErrorAlert from './ErrorAlert';
+import { useToast } from './ui/toast';
+import { EventApiService } from '@/services/eventService';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 
 interface EventListProps {
   onViewEvent: (event: Event) => void;
@@ -20,10 +32,16 @@ interface EventListProps {
 }
 
 export default function EventList({ onViewEvent, onCreateEvent }: EventListProps) {
+  const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isClosingDialog, setIsClosingDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | Event['status']>('all');
+  const deleteInProgressRef = React.useRef(false);
   
   // Use debounce hook with 400ms delay for better UX
   const debouncedSearch = useDebounce(searchTerm, 400);
@@ -67,11 +85,77 @@ export default function EventList({ onViewEvent, onCreateEvent }: EventListProps
     }, 500); // Small delay to ensure backend processing is complete
   };
 
+  const handleEditEvent = (event: Event) => {
+    setSelectedEvent(event);
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateEvent = async (eventData: any) => {
+    // AnimatedEventForm already handles the API call and toast notification
+    // We just need to close the dialog and refetch
+    setShowEditDialog(false);
+    setSelectedEvent(null);
+    
+    // Refetch data from server
+    setTimeout(async () => {
+      await refetch();
+    }, 500);
+  };
+
+  const handleDeleteClick = (event: Event) => {
+    setSelectedEvent(event);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedEvent || deleteInProgressRef.current) return;
+
+    // Prevent multiple calls
+    deleteInProgressRef.current = true;
+    setIsDeleting(true);
+    
+    try {
+      const eventId = parseInt(selectedEvent.id.toString(), 10);
+      const eventTitle = selectedEvent.title; // Store title before clearing state
+      
+      await EventApiService.deleteEvent(eventId);
+      
+      // Close dialog and clear state before showing toast
+      setShowDeleteDialog(false);
+      setSelectedEvent(null);
+      
+      // Show toast notification (only once)
+      toast({
+        variant: 'success',
+        title: 'Event Berhasil Dihapus',
+        description: `Event "${eventTitle}" berhasil dihapus.`
+      });
+      
+      // Refetch data from server
+      await refetch();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan saat menghapus event';
+      toast({
+        variant: 'error',
+        title: 'Gagal Menghapus Event',
+        description: errorMessage
+      });
+    } finally {
+      setIsDeleting(false);
+      // Reset ref after a short delay to allow for cleanup
+      setTimeout(() => {
+        deleteInProgressRef.current = false;
+      }, 100);
+    }
+  };
+
   const handleCloseDialog = () => {
     setIsClosingDialog(true);
     setTimeout(() => {
       setShowCreateDialog(false);
+      setShowEditDialog(false);
       setIsClosingDialog(false);
+      setSelectedEvent(null);
     }, 150); // Match CSS animation duration (0.15s)
   };
 
@@ -222,6 +306,7 @@ export default function EventList({ onViewEvent, onCreateEvent }: EventListProps
                       alt={`Gambar ${event.title}`}
                       className="w-full h-full object-cover"
                       loading="lazy"
+                      crossOrigin="anonymous"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.style.display = 'none';
@@ -240,7 +325,7 @@ export default function EventList({ onViewEvent, onCreateEvent }: EventListProps
                   ) : null}
                   <div className={`absolute inset-0 flex flex-col items-center justify-center text-gray-400 text-xs ${event.imageUrl && event.imageUrl !== '/placeholder-event.jpg' ? 'hidden' : 'flex'}`}>
                     <Image className="h-8 w-8 mb-2 text-gray-300" />
-                    <span>Gambar Event</span>
+                    <span>Flyer Event</span>
                   </div>
                 </div>
                 
@@ -275,15 +360,33 @@ export default function EventList({ onViewEvent, onCreateEvent }: EventListProps
                   <p className="text-sm text-gray-600 line-clamp-2 mb-4 flex-1">
                     {event.description}
                   </p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => onViewEvent(event)}
-                    className="w-full border-teal-300 text-teal-700 hover:bg-teal-50 mt-auto transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-md"
-                  >
-                    <Eye className="h-4 w-4 mr-2 transition-transform duration-200 group-hover:scale-110" />
-                    Lihat Detail
-                  </Button>
+                  <div className="flex gap-2 mt-auto">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => onViewEvent(event)}
+                      className="flex-1 border-teal-300 text-teal-700 hover:bg-teal-50 transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-md"
+                    >
+                      <Eye className="h-4 w-4 mr-2 transition-transform duration-200 group-hover:scale-110" />
+                      Detail
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleEditEvent(event)}
+                      className="border-blue-300 text-blue-700 hover:bg-blue-50 transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-md"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleDeleteClick(event)}
+                      className="border-red-300 text-red-700 hover:bg-red-50 transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-md"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -351,6 +454,69 @@ export default function EventList({ onViewEvent, onCreateEvent }: EventListProps
           </div>
         </AnimatedDialogContent>
       </AnimatedDialog>
+
+      <AnimatedDialog 
+        open={showEditDialog} 
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCloseDialog();
+          } else {
+            setShowEditDialog(true);
+          }
+        }}
+      >
+        <AnimatedDialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <AnimatedDialogHeader className="flex-shrink-0 relative">
+            <button
+              onClick={handleCloseDialog}
+              className="absolute -top-2 -right-2 z-10 w-8 h-8 rounded-full bg-white shadow-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all duration-200 hover:scale-110 hover:rotate-90"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <AnimatedDialogTitle className="pr-10">Edit Event</AnimatedDialogTitle>
+            <AnimatedDialogDescription>
+              Perbarui informasi event yang dipilih
+            </AnimatedDialogDescription>
+          </AnimatedDialogHeader>
+          <div className="flex-1 overflow-y-auto scrollbar-hide" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
+            {selectedEvent && (
+              <AnimatedEventForm 
+                onSubmit={handleUpdateEvent}
+                onCancel={handleCloseDialog}
+                initialData={selectedEvent}
+              />
+            )}
+          </div>
+        </AnimatedDialogContent>
+      </AnimatedDialog>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus event <strong>"{selectedEvent?.title}"</strong>? 
+              Tindakan ini tidak dapat dibatalkan. Event yang sudah memiliki peserta terdaftar tidak dapat dihapus.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDeleteConfirm();
+              }}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? 'Menghapus...' : 'Hapus'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

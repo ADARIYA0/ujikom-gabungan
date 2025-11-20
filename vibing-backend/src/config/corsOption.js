@@ -23,16 +23,10 @@ function shouldLogOnce(key) {
 const corsOptions = {
     origin: function (origin, callback) {
         if (!origin) {
-            if (process.env.NODE_ENV !== 'production' && shouldLogOnce(recentNoOriginLogKey)) {
-                logger.debug('No origin provided — allowing request (likely server-to-server or Postman)');
-            }
             return callback(null, true);
         }
 
         if (allowedOrigins.includes(origin)) {
-            if (process.env.NODE_ENV !== 'production' && shouldLogOnce(origin)) {
-                logger.debug(`Allowed origin: ${origin}`);
-            }
             return callback(null, true);
         }
 

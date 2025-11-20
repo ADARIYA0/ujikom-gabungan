@@ -50,7 +50,7 @@ export async function performLogout(): Promise<void> {
     try {
         await ApiClient.logout();
     } catch (error) {
-        console.error('Logout error:', error);
+        // Silent fail - logout will continue
     } finally {
         TokenManager.clearAllTokens();
     }

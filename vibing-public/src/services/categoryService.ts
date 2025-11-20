@@ -23,10 +23,6 @@ class CategoryService {
     constructor() {
         // Use environment variable, never hardcode URLs
         this.baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
-        
-        if (!this.baseUrl) {
-          console.warn('NEXT_PUBLIC_BASE_URL environment variable is not set');
-        }
     }
 
     /**
@@ -55,8 +51,6 @@ class CategoryService {
 
             return result.data;
         } catch (error) {
-            console.error('Error fetching categories:', error);
-
             // Return fallback categories with proper image URLs
             return this.getFallbackCategories();
         }
@@ -73,7 +67,6 @@ class CategoryService {
             // Increased limit to show more category cards (up to 10 categories)
             return categories.slice(0, 10);
         } catch (error) {
-            console.error('Error fetching categories for Hero:', error);
             return this.getFallbackCategories();
         }
     }
@@ -189,7 +182,6 @@ class CategoryService {
             const categories = await this.getAllCategories();
             return categories.find(cat => cat.slug === slug) || null;
         } catch (error) {
-            console.error('Error fetching category by slug:', error);
             return null;
         }
     }

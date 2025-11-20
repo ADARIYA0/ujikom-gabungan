@@ -78,11 +78,6 @@ export class AuthApiService {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ message: 'Login failed' }));
-                console.error('AuthService: Login failed:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    error: errorData
-                });
 
                 if (response.status === 404) {
                     throw new Error('Admin tidak ditemukan');
@@ -99,7 +94,6 @@ export class AuthApiService {
             // Login successful
             return data;
         } catch (error) {
-            console.error('AuthService: Login error:', error);
             if (error instanceof Error) {
                 throw error;
             }
@@ -123,11 +117,6 @@ export class AuthApiService {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ message: 'Token refresh failed' }));
-                console.error('AuthService: Token refresh failed:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    error: errorData
-                });
 
                 if (response.status === 401) {
                     throw new Error('Refresh token tidak ditemukan');
@@ -142,7 +131,6 @@ export class AuthApiService {
             // Token refresh successful
             return data;
         } catch (error) {
-            console.error('AuthService: Token refresh error:', error);
             throw error;
         }
     }
@@ -162,13 +150,6 @@ export class AuthApiService {
             });
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ message: 'Logout failed' }));
-                console.error('AuthService: Logout failed:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    error: errorData
-                });
-
                 // Don't throw error for logout - always proceed with local cleanup
                 // Logout API failed, continuing with cleanup
                 return;
@@ -176,7 +157,6 @@ export class AuthApiService {
 
             // Logout successful
         } catch (error) {
-            console.error('AuthService: Logout error:', error);
             // Don't throw error for logout - always proceed with local cleanup
             // Logout failed, continuing with cleanup
         }
@@ -217,7 +197,6 @@ export class AuthApiService {
                 exp: payload.exp,
             };
         } catch (error) {
-            console.error('AuthService: Token decode error:', error);
             return null;
         }
     }
@@ -245,7 +224,6 @@ export class AuthApiService {
 
             return payload.exp <= currentTime;
         } catch (error) {
-            console.error('AuthService: Token expiry check error:', error);
             return true;
         }
     }
@@ -260,7 +238,6 @@ export class AuthApiService {
 
             return this.decodeToken(token);
         } catch (error) {
-            console.error('AuthService: Get current user error:', error);
             return null;
         }
     }
@@ -281,7 +258,6 @@ export class AuthApiService {
             const user = this.decodeToken(token);
             return user !== null && user.role === 'admin';
         } catch (error) {
-            console.error('AuthService: Authentication check error:', error);
             return false;
         }
     }

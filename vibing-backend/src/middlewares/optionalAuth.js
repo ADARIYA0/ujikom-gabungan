@@ -27,10 +27,8 @@ const optionalAuth = (req, res, next) => {
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         req.user = decoded;
-        logger.debug(`Optional auth: Token verified: userId=${decoded.id}, url=${req.originalUrl}`);
     } catch (error) {
         // If token is invalid, continue without user (don't block request)
-        logger.debug(`Optional auth: Invalid token (continuing without user), url=${req.originalUrl}`);
         req.user = null;
     }
 

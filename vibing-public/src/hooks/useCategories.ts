@@ -38,7 +38,6 @@ export function useCategories(): UseCategoriesReturn {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to fetch categories';
             setError(errorMessage);
-            console.error('Error in useCategories:', err);
         } finally {
             setIsLoading(false);
         }
@@ -75,7 +74,6 @@ export function useCategoriesForHero(): UseCategoriesReturn {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to fetch categories for Hero';
             setError(errorMessage);
-            console.error('Error in useCategoriesForHero:', err);
 
             // Set empty array on error to prevent breaking the UI
             setCategories([]);

@@ -29,4 +29,24 @@ router.get('/:id', optionalAuth, eventController.getEventById);
 router.post('/:id/register', verifyToken, eventController.registerEvent);
 router.post('/:id/checkin', verifyToken, eventController.checkInEvent);
 
+router.put(
+    '/:id',
+    verifyToken,
+    authorizeRoles('admin'),
+    upload.fields([
+        { name: 'flyer_kegiatan', maxCount: 1 },
+        { name: 'sertifikat_kegiatan', maxCount: 1 }
+    ]),
+    eventValidationRules,
+    validate,
+    eventController.updateEvent
+);
+
+router.delete(
+    '/:id',
+    verifyToken,
+    authorizeRoles('admin'),
+    eventController.deleteEvent
+);
+
 module.exports = router;

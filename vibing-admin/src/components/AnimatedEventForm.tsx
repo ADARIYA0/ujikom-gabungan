@@ -1,34 +1,40 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Calendar, Clock, MapPin, Image, Award, FileText, Loader2, Users, DollarSign, Plus, X } from 'lucide-react';
+import { Calendar, Clock, MapPin, Image, Award, FileText, Loader2, Users, DollarSign, Plus, X, Tag, ChevronDown } from 'lucide-react';
 import { EventApiService } from '@/services/eventService';
 import { CreateEventFormData } from '@/types/event-api';
 import SimpleFileUpload from './ui/simple-file-upload';
 import PriceInput from './ui/price-input';
 import CapacityInput from './ui/capacity-input';
 import CustomValidation from './ui/custom-validation';
+import { categoryService, Category } from '@/services/categoryService';
+import { useToast } from './ui/toast';
 
 interface AnimatedEventFormProps {
     onSubmit: (eventData: any) => void;
     onCancel: () => void;
+    initialData?: any; // Event data for edit mode
 }
 
-export default function AnimatedEventForm({ onSubmit, onCancel }: AnimatedEventFormProps) {
+export default function AnimatedEventForm({ onSubmit, onCancel, initialData }: AnimatedEventFormProps) {
+    const { toast } = useToast();
+    const isEditMode = !!initialData;
+    
     const [formData, setFormData] = useState<Partial<CreateEventFormData>>({
-        judul_kegiatan: '',
-        deskripsi_kegiatan: '',
-        lokasi_kegiatan: '',
-        waktu_mulai: '',
-        waktu_berakhir: '',
-        kapasitas_peserta: 0,
-        harga: 0,
+        judul_kegiatan: initialData?.title || '',
+        deskripsi_kegiatan: initialData?.description || '',
+        lokasi_kegiatan: initialData?.location || '',
+        waktu_mulai: initialData?.startDate ? new Date(initialData.startDate).toISOString().slice(0, 16) : '',
+        waktu_berakhir: initialData?.endDate ? new Date(initialData.endDate).toISOString().slice(0, 16) : '',
+        kapasitas_peserta: initialData?.capacity || 0,
+        harga: initialData?.price || 0,
+        kategori_id: initialData?.kategori_id || undefined,
         flyer_kegiatan: undefined,
-        gambar_kegiatan: undefined,
         sertifikat_kegiatan: undefined
     });
 
@@ -36,17 +42,33 @@ export default function AnimatedEventForm({ onSubmit, onCancel }: AnimatedEventF
     const [isClosing, setIsClosing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [isUnlimitedCapacity, setIsUnlimitedCapacity] = useState(false);
+    const [isUnlimitedCapacity, setIsUnlimitedCapacity] = useState(initialData?.capacity === 0);
     const [selectedFiles, setSelectedFiles] = useState<{
         flyer_kegiatan?: File;
-        gambar_kegiatan?: File;
         sertifikat_kegiatan?: File;
     }>({});
     const [showFileUploads, setShowFileUploads] = useState({
-        gambar_kegiatan: false,
         flyer_kegiatan: false,
         sertifikat_kegiatan: false
     });
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [categoriesLoading, setCategoriesLoading] = useState(true);
+
+    // Fetch categories on component mount
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                setCategoriesLoading(true);
+                const data = await categoryService.getAllCategories();
+                setCategories(data);
+            } catch (error) {
+                // Silent fail - categories are optional
+            } finally {
+                setCategoriesLoading(false);
+            }
+        };
+        fetchCategories();
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -86,12 +108,18 @@ export default function AnimatedEventForm({ onSubmit, onCancel }: AnimatedEventF
                 waktu_berakhir: formData.waktu_berakhir!,
                 kapasitas_peserta: isUnlimitedCapacity ? 0 : (formData.kapasitas_peserta || 0),
                 harga: formData.harga || 0,
+                kategori_id: formData.kategori_id,
                 flyer_kegiatan: selectedFiles.flyer_kegiatan,
-                gambar_kegiatan: selectedFiles.gambar_kegiatan,
                 sertifikat_kegiatan: selectedFiles.sertifikat_kegiatan
             };
 
-            const response = await EventApiService.createEvent(apiData);
+            let response;
+            if (isEditMode && initialData) {
+                const eventId = parseInt(initialData.id.toString(), 10);
+                response = await EventApiService.updateEvent(eventId, apiData);
+            } else {
+                response = await EventApiService.createEvent(apiData);
+            }
             
             // Backend returns filenames, construct full URLs for frontend
             const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
@@ -106,8 +134,8 @@ export default function AnimatedEventForm({ onSubmit, onCancel }: AnimatedEventF
                 capacity: isUnlimitedCapacity ? 0 : (formData.kapasitas_peserta || 0),
                 price: formData.harga || 0,
                 status: 'upcoming' as const,
-                imageUrl: (response.data as any)?.gambar_kegiatan 
-                    ? `${BASE_URL?.replace(/\/$/, '') || ''}/uploads/events/${(response.data as any).gambar_kegiatan}`
+                imageUrl: (response.data as any)?.flyer_kegiatan
+                    ? `${BASE_URL?.replace(/\/$/, '') || ''}/uploads/flyer/${(response.data as any).flyer_kegiatan}`
                     : '/placeholder-event.jpg',
                 flyer: (response.data as any)?.flyer_kegiatan 
                     ? `${BASE_URL?.replace(/\/$/, '') || ''}/uploads/flyer/${(response.data as any).flyer_kegiatan}`
@@ -126,28 +154,56 @@ export default function AnimatedEventForm({ onSubmit, onCancel }: AnimatedEventF
                 updatedAt: new Date()
             };
             
-            onSubmit(eventData);
-            setFormData({
-                judul_kegiatan: '',
-                deskripsi_kegiatan: '',
-                lokasi_kegiatan: '',
-                waktu_mulai: '',
-                waktu_berakhir: '',
-                kapasitas_peserta: 0,
-                harga: 0,
-                flyer_kegiatan: undefined,
-                gambar_kegiatan: undefined,
-                sertifikat_kegiatan: undefined
-            });
-            setSelectedFiles({});
-            setIsUnlimitedCapacity(false);
-            setShowFileUploads({
-                gambar_kegiatan: false,
-                flyer_kegiatan: false,
-                sertifikat_kegiatan: false
-            });
+            // Toast notification
+            if (isEditMode) {
+                toast({
+                    variant: 'success',
+                    title: 'Event Berhasil Diperbarui',
+                    description: `Event "${formData.judul_kegiatan}" berhasil diperbarui.`
+                });
+            } else {
+                toast({
+                    variant: 'success',
+                    title: 'Event Berhasil Ditambahkan',
+                    description: `Event "${formData.judul_kegiatan}" berhasil ditambahkan.`
+                });
+            }
+            
+            // Only reset form if not in edit mode
+            if (!isEditMode) {
+                setFormData({
+                    judul_kegiatan: '',
+                    deskripsi_kegiatan: '',
+                    lokasi_kegiatan: '',
+                    waktu_mulai: '',
+                    waktu_berakhir: '',
+                    kapasitas_peserta: 0,
+                    harga: 0,
+                    kategori_id: undefined,
+                    flyer_kegiatan: undefined,
+                    sertifikat_kegiatan: undefined
+                });
+                setSelectedFiles({});
+                setIsUnlimitedCapacity(false);
+                setShowFileUploads({
+                    flyer_kegiatan: false,
+                    sertifikat_kegiatan: false
+                });
+            } else {
+                // In edit mode, just clear selected files
+                setSelectedFiles({});
+            }
             setErrors({});
+            
+            // Call onSubmit callback (parent component handles dialog closing and refetch)
+            onSubmit(eventData);
         } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : (isEditMode ? 'Terjadi kesalahan saat memperbarui event' : 'Terjadi kesalahan saat menambahkan event');
+            toast({
+                variant: 'error',
+                title: isEditMode ? 'Gagal Memperbarui Event' : 'Gagal Menambahkan Event',
+                description: errorMessage
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -353,6 +409,51 @@ export default function AnimatedEventForm({ onSubmit, onCancel }: AnimatedEventF
                     )}
                 </div>
 
+                <div className="transform transition-all duration-200 ease-in-out hover:translate-y-[-1px]">
+                    <Label htmlFor="kategori_id" className={getLabelClasses('kategori_id')}>
+                        <Tag className={`h-4 w-4 transition-colors duration-200 ${focusedField === 'kategori_id' ? 'text-teal-600' : 'text-teal-500'
+                            }`} />
+                        Kategori Event *
+                    </Label>
+                    <div className="relative">
+                        <select
+                            id="kategori_id"
+                            name="kategori_id"
+                            value={formData.kategori_id?.toString() || ''}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setFormData(prev => ({
+                                    ...prev,
+                                    kategori_id: value && value !== '' ? parseInt(value, 10) : undefined
+                                }));
+                                if (errors.kategori_id) {
+                                    setErrors(prev => {
+                                        const updated = { ...prev };
+                                        delete updated.kategori_id;
+                                        return updated;
+                                    });
+                                }
+                            }}
+                            onFocus={() => handleFocus('kategori_id')}
+                            onBlur={handleBlur}
+                            disabled={isSubmitting || categoriesLoading}
+                            className={`${getFieldClasses('kategori_id', 'focus:border-teal-500')} appearance-none pr-10`}
+                            required
+                        >
+                            <option value="">{categoriesLoading ? "Memuat kategori..." : "Pilih kategori"}</option>
+                            {categories.map((category) => (
+                                <option key={category.id} value={category.id.toString()}>
+                                    {category.nama_kategori}
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    </div>
+                    {errors.kategori_id && (
+                        <CustomValidation message={errors.kategori_id} />
+                    )}
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="transform transition-all duration-200 ease-in-out hover:translate-y-[-1px]">
                         <Label className={getLabelClasses('kapasitas_peserta')}>
@@ -455,23 +556,7 @@ export default function AnimatedEventForm({ onSubmit, onCancel }: AnimatedEventF
                             Mau menambahkan file untuk event?
                         </h3>
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <Button
-                                type="button"
-                                variant={showFileUploads.gambar_kegiatan ? "default" : "outline"}
-                                onClick={() => toggleFileUpload('gambar_kegiatan')}
-                                disabled={isSubmitting}
-                                className={`h-auto py-3 px-4 flex flex-col items-center gap-2 ${
-                                    showFileUploads.gambar_kegiatan 
-                                        ? 'bg-teal-600 hover:bg-teal-700 text-white' 
-                                        : 'border-gray-300 hover:bg-gray-50'
-                                }`}
-                            >
-                                <Image className="h-5 w-5" />
-                                <span className="text-xs font-medium">Gambar Event</span>
-                                <span className="text-xs opacity-75">JPG, PNG, WebP</span>
-                            </Button>
-
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <Button
                                 type="button"
                                 variant={showFileUploads.flyer_kegiatan ? "default" : "outline"}
@@ -507,23 +592,6 @@ export default function AnimatedEventForm({ onSubmit, onCancel }: AnimatedEventF
                     </div>
 
                     <div className="space-y-4">
-                        {showFileUploads.gambar_kegiatan && (
-                            <div className="transform transition-all duration-200 ease-in-out hover:translate-y-[-1px] animate-in slide-in-from-top-2 fade-in-0">
-                                <SimpleFileUpload
-                                    label="Gambar Event"
-                                    accept={['.jpg', '.jpeg', '.png', '.webp']}
-                                    onFileSelected={(file) => handleFileSelected('gambar_kegiatan', file)}
-                                    onFileRemoved={() => handleFileRemoved('gambar_kegiatan')}
-                                    currentFile={selectedFiles.gambar_kegiatan}
-                                    disabled={isSubmitting}
-                                    error={errors.gambar_kegiatan}
-                                />
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Hanya file gambar (JPG, PNG, WebP) yang diizinkan. Maksimal 10MB.
-                                </p>
-                            </div>
-                        )}
-
                         {showFileUploads.flyer_kegiatan && (
                             <div className="transform transition-all duration-200 ease-in-out hover:translate-y-[-1px] animate-in slide-in-from-top-2 fade-in-0">
                                 <SimpleFileUpload

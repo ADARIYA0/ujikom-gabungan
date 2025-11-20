@@ -5,6 +5,7 @@ const categoryRoute = require('./src/routes/categoryRoute');
 const cookieParser = require('cookie-parser');
 const cors = require("cors");
 const eventRoute = require('./src/routes/eventRoute');
+const userRoute = require('./src/routes/userRoute');
 const express = require('express');
 const path = require('path');
 
@@ -17,7 +18,9 @@ app.use(express.json());
 app.use('/api/auth', authRoute);
 app.use('/api/auth/admin', adminRoute);
 app.use('/api/category', categoryRoute);
-app.use('/api/event', eventRoute)
+app.use('/api/event', eventRoute);
+app.use('/api/user', userRoute);
+app.use('/api/payment', require('./src/routes/paymentRoute'));
 
 app.get('/status', (req, res) => {
     res.status(200).json({

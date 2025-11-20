@@ -42,6 +42,18 @@ export default function Home() {
     const result = await registerEvent(eventId);
 
     if (result.success) {
+      // If payment is required, redirect to payment page immediately
+      if (result.data?.requiresPayment) {
+        // Don't show toast, redirect immediately
+        // Use eventId if available (new flow), otherwise use attendanceId (backward compatibility)
+        const paymentParam = result.data.eventId 
+          ? `event_id=${result.data.eventId}` 
+          : `attendance_id=${result.data.attendanceId}`;
+        router.push(`/payment?${paymentParam}`);
+        return;
+      }
+
+      // For free events, show success toast
       toast({
         variant: 'success',
         title: 'Pendaftaran Berhasil!',

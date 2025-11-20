@@ -4,13 +4,14 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { FcGoogle } from 'react-icons/fc';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { apiRequest, getErrorMessage } from '@/utils/globalErrorHandler';
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isLoggedIn, login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,11 +21,13 @@ export default function LoginPage() {
   const [emailError, setEmailError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const returnUrl = searchParams.get('returnUrl') || '/';
+
   useEffect(() => {
     if (isLoggedIn) {
-      router.push('/');
+      router.push(returnUrl);
     }
-  }, [isLoggedIn, router]);
+  }, [isLoggedIn, router, returnUrl]);
 
   if (isLoggedIn) {
     return null;
@@ -67,11 +70,11 @@ export default function LoginPage() {
       const result = await login(email, password);
 
       if (result.success) {
-        setSuccess('Login berhasil! Anda akan dialihkan ke halaman utama.');
+        setSuccess('Login berhasil! Anda akan dialihkan.');
         
         setTimeout(() => {
-          router.push('/');
-        }, 2000);
+          router.push(returnUrl);
+        }, 1500);
         return;
       } else {
         setError(getErrorMessage(result.message));
@@ -255,5 +258,19 @@ export default function LoginPage() {
         © 2025 PT Vibing Global Media. All Rights Reserved
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+        <div className="text-center">
+          <p className="text-muted-foreground">Memuat halaman login...</p>
+        </div>
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   );
 }

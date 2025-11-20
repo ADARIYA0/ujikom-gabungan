@@ -37,16 +37,25 @@ function transformApiEventToEvent(apiEvent: ApiEvent): Event {
 
   // Build proper URLs for images based on backend file structure
   // Backend menyimpan files dengan path yang sesuai dengan UPLOAD_DIRS di upload.js
+  // Use flyer_kegiatan for imageUrl (gambar_kegiatan has been removed)
+  const getImageUrl = (imagePath: string | null | undefined): string => {
+    if (!imagePath) return '';
+    if (imagePath.startsWith('http')) return imagePath;
+    // Backend stores flyer in /uploads/flyer/ directory
+    return `${BASE_URL?.replace(/\/$/, '') || ''}/uploads/flyer/${imagePath}`;
+  };
+
   const flyerUrl = apiEvent.flyer_kegiatan 
-    ? `${BASE_URL?.replace(/\/$/, '') || ''}/uploads/flyer/${apiEvent.flyer_kegiatan}`
+    ? getImageUrl(apiEvent.flyer_kegiatan)
     : '';
   
   const certificateUrl = apiEvent.sertifikat_kegiatan 
     ? `${BASE_URL?.replace(/\/$/, '') || ''}/uploads/certificates/${apiEvent.sertifikat_kegiatan}`
     : '';
 
-  const imageUrl = apiEvent.gambar_kegiatan 
-    ? `${BASE_URL?.replace(/\/$/, '') || ''}/uploads/events/${apiEvent.gambar_kegiatan}`
+  // Use flyer_kegiatan for imageUrl (gambar_kegiatan has been removed)
+  const imageUrl = apiEvent.flyer_kegiatan 
+    ? getImageUrl(apiEvent.flyer_kegiatan)
     : '';
 
 
@@ -64,7 +73,9 @@ function transformApiEventToEvent(apiEvent: ApiEvent): Event {
     description: apiEvent.deskripsi_kegiatan,
     participants: apiEvent.attendee_count || 0,
     capacity: apiEvent.kapasitas_peserta || 0,
-    status
+    status,
+    price: apiEvent.harga || 0,
+    kategori_id: apiEvent.kategori?.id
   };
 }
 
@@ -173,11 +184,19 @@ export async function fetchEventBySlug(slug: string): Promise<Event> {
 // ========================================
 
 export class EventApiService {
-  private static getHeaders(includeContentType = true): HeadersInit {
+  private static getHeaders(includeContentType = true, includeAuth = true): HeadersInit {
     const headers: HeadersInit = {};
 
     if (includeContentType) {
       headers['Content-Type'] = 'application/json';
+    }
+
+    // Add authentication token
+    if (includeAuth) {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
     }
 
     return headers;
@@ -234,18 +253,115 @@ export class EventApiService {
         form.append('flyer_kegiatan', formData.flyer_kegiatan);
       }
 
-      if (formData.gambar_kegiatan && typeof formData.gambar_kegiatan !== 'string') {
-        form.append('gambar_kegiatan', formData.gambar_kegiatan);
-      }
-
       if (formData.sertifikat_kegiatan && typeof formData.sertifikat_kegiatan !== 'string') {
         form.append('sertifikat_kegiatan', formData.sertifikat_kegiatan);
       }
 
       const response = await fetch(`${API_BASE_URL}/event`, {
         method: 'POST',
-        headers: this.getHeaders(false),
+        headers: this.getHeaders(false, true), // false = no Content-Type (FormData sets it automatically), true = include auth token
         body: form,
+      });
+
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          errorData = { message: 'Unknown error - could not parse response' };
+        }
+        
+        const errorMessage = errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async updateEvent(eventId: number, formData: CreateEventFormData): Promise<CreateEventResponse> {
+    try {
+      const form = new FormData();
+      
+      // Add required fields
+      if (formData.judul_kegiatan) {
+        form.append('judul_kegiatan', formData.judul_kegiatan);
+      }
+      if (formData.deskripsi_kegiatan) {
+        form.append('deskripsi_kegiatan', formData.deskripsi_kegiatan);
+      }
+      if (formData.lokasi_kegiatan) {
+        form.append('lokasi_kegiatan', formData.lokasi_kegiatan);
+      }
+      if (formData.waktu_mulai) {
+        form.append('waktu_mulai', formData.waktu_mulai);
+      }
+      if (formData.waktu_berakhir) {
+        form.append('waktu_berakhir', formData.waktu_berakhir);
+      }
+
+      // Add optional fields
+      if (formData.slug) {
+        form.append('slug', formData.slug);
+      }
+
+      if (formData.kapasitas_peserta !== undefined) {
+        form.append('kapasitas_peserta', formData.kapasitas_peserta.toString());
+      }
+      if (formData.harga !== undefined) {
+        form.append('harga', formData.harga.toString());
+      }
+
+      if (formData.kategori_id) {
+        form.append('kategori_id', formData.kategori_id.toString());
+      }
+
+      if (formData.kategori_slug) {
+        form.append('kategori_slug', formData.kategori_slug);
+      }
+
+      // Add file fields - backend expects File objects, not URLs
+      if (formData.flyer_kegiatan && typeof formData.flyer_kegiatan !== 'string') {
+        form.append('flyer_kegiatan', formData.flyer_kegiatan);
+      }
+
+      if (formData.sertifikat_kegiatan && typeof formData.sertifikat_kegiatan !== 'string') {
+        form.append('sertifikat_kegiatan', formData.sertifikat_kegiatan);
+      }
+
+      const response = await fetch(`${API_BASE_URL}/event/${eventId}`, {
+        method: 'PUT',
+        headers: this.getHeaders(false, true), // false = no Content-Type (FormData sets it automatically), true = include auth token
+        body: form,
+      });
+
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          errorData = { message: 'Unknown error - could not parse response' };
+        }
+        
+        const errorMessage = errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async deleteEvent(eventId: number): Promise<{ message: string; data: { id: number } }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/event/${eventId}`, {
+        method: 'DELETE',
+        headers: this.getHeaders(true, true), // Include Content-Type and auth token
       });
 
       if (!response.ok) {
@@ -283,6 +399,11 @@ export class EventApiService {
 
     if (!data.lokasi_kegiatan?.trim()) {
       errors.lokasi_kegiatan = 'Lokasi kegiatan wajib diisi';
+    }
+
+    // Kategori is REQUIRED
+    if (!data.kategori_id || data.kategori_id === 0) {
+      errors.kategori_id = 'Kategori event harus dipilih';
     }
 
     if (!data.waktu_mulai) {
@@ -323,15 +444,6 @@ export class EventApiService {
     // File validation - only validate if it's a File object
     const maxFileSize = 10 * 1024 * 1024; // 10MB
     const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-
-    // Gambar Event is OPTIONAL but must be image only if provided
-    if (data.gambar_kegiatan && typeof data.gambar_kegiatan !== 'string') {
-      if (data.gambar_kegiatan.size > maxFileSize) {
-        errors.gambar_kegiatan = 'Ukuran file gambar maksimal 10MB';
-      } else if (!allowedImageTypes.includes(data.gambar_kegiatan.type)) {
-        errors.gambar_kegiatan = 'Format file gambar harus JPG, PNG, atau WebP';
-      }
-    }
 
     // Flyer Event is OPTIONAL, hanya image yang diizinkan
     if (data.flyer_kegiatan && typeof data.flyer_kegiatan !== 'string') {

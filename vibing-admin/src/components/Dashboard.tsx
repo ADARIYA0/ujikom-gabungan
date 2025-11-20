@@ -262,6 +262,7 @@ export default function Dashboard() {
                           src={event.imageUrl}
                           alt={event.title}
                           className="w-full h-full object-cover"
+                          crossOrigin="anonymous"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.style.display = 'none';

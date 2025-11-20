@@ -38,7 +38,8 @@ const AppDataSource = new DataSource({
     require('../entities/Auth/AdminToken'),
     require('../entities/Events/Event'),
     require('../entities/Events/EventCategory'),
-    require('../entities/Events/Attendance')
+    require('../entities/Events/Attendance'),
+    require('../entities/Payment/Payment')
   ]
 });
 

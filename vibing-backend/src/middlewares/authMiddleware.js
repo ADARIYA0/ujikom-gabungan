@@ -20,8 +20,13 @@ const verifyToken = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        // Ensure role is present in decoded token
+        if (!decoded.role) {
+            logger.warn(`Token missing role, userId=${decoded.id}, ip=${ip}, url=${req.originalUrl}`);
+            // For backward compatibility, if no role, assume 'user' (but this should not happen for admin)
+            decoded.role = 'user';
+        }
         req.user = decoded;
-        logger.debug(`Token verified: userId=${decoded.id}, ip=${ip}, url=${req.originalUrl}`);
         next();
     } catch (error) {
         logger.warn(`Invalid token: ${error}, ip=${ip}, url=${req.originalUrl}`);

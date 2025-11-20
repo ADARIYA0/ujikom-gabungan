@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
-import { Menu, Calendar, User, LogOut, Search, ArrowRight } from 'lucide-react';
+import { Menu, Calendar, User, LogOut, Search } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface HeaderProps {
@@ -32,9 +32,14 @@ export function Header({
   // Handle scroll behavior - detect when past hero section
   useEffect(() => {
     const handleScroll = () => {
-      // Detect scroll past hero section (typically viewport height)
-      const heroHeight = window.innerHeight * 0.8; // 80% of viewport height
+      // For event page, always keep transparent (like Hero section)
+      // For home page, detect scroll past hero section
+      if (currentView === 'search') {
+        setIsScrolled(false); // Always transparent on event page
+      } else {
+        const heroHeight = window.innerHeight * 0.8;
       setIsScrolled(window.scrollY > heroHeight);
+      }
     };
 
     // Throttle scroll events for better performance
@@ -51,7 +56,7 @@ export function Header({
 
     window.addEventListener('scroll', throttledHandleScroll, { passive: true });
     return () => window.removeEventListener('scroll', throttledHandleScroll);
-  }, []);
+  }, [currentView]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -97,19 +102,23 @@ export function Header({
   };
 
   return (
-    <div className="fixed top-4 left-0 right-0 z-[60] w-full">
+    <div className="fixed top-4 left-4 right-4 z-[60]">
       <div className={`w-full transition-all duration-300 ease-in-out ${
-        isScrolled 
-          ? 'bg-white/95 backdrop-blur-md shadow-sm' 
+        isScrolled && currentView !== 'search'
+          ? 'bg-gray-100 rounded-xl shadow-md' 
           : 'bg-transparent'
       }`}>
-        <div className="w-full px-6 md:px-8 lg:px-12 xl:px-16">
-          <header className="h-[64px] md:h-[72px] flex items-center justify-between">
+        <div className={`w-full transition-all duration-300 ${
+          isScrolled && currentView !== 'search'
+            ? 'px-3 md:px-4' 
+            : 'px-6 md:px-8 lg:px-12 xl:px-16'
+        }`}>
+          <header className="h-[64px] md:h-[72px] flex items-center justify-between gap-2">
             {/* Left side: Logo + Navigation */}
-            <div className="flex items-center space-x-8 lg:space-x-12">
+            <div className="flex items-center space-x-3 md:space-x-4 flex-shrink-0">
               {/* Logo */}
               <div
-                className="flex items-center space-x-2 cursor-pointer group"
+                className="flex items-center space-x-2 cursor-pointer group flex-shrink-0"
                 onClick={() => router.push('/')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -121,13 +130,13 @@ export function Header({
                 tabIndex={0}
                 aria-label="PlanHub Home"
               >
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center group-hover:scale-105 transition-all duration-200 ${
-                  isScrolled ? 'bg-primary text-white' : 'bg-white text-primary'
+                <div className={`w-9 h-9 md:w-10 md:h-10 rounded-lg flex items-center justify-center group-hover:scale-105 transition-all duration-200 flex-shrink-0 ${
+                  isScrolled && currentView !== 'search' ? 'bg-primary text-white' : 'bg-white text-primary'
                 }`}>
-                  <Calendar className="h-5 w-5" />
+                  <Calendar className="h-4 w-4 md:h-5 md:w-5" />
                 </div>
-                <span className={`font-bold text-xl transition-colors duration-200 ${
-                  isScrolled ? 'text-gray-900' : 'text-white'
+                <span className={`font-bold text-lg md:text-xl transition-colors duration-200 whitespace-nowrap ${
+                  isScrolled && currentView !== 'search' ? 'text-gray-900' : 'text-white'
                 }`}>
                   PlanHub
                 </span>
@@ -135,34 +144,34 @@ export function Header({
 
               {/* Desktop Navigation - Right after logo */}
               <nav 
-                className="hidden md:flex items-center space-x-6 lg:space-x-8"
+                className="hidden md:flex items-center space-x-2 lg:space-x-3 flex-shrink-0"
                 role="navigation"
                 aria-label="Main navigation"
               >
                 <button
                   onClick={() => handleMenuClick('home', '/')}
-                  className={`transition-colors duration-200 font-semibold text-sm uppercase tracking-wide relative group cursor-pointer rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                    isScrolled 
-                      ? 'text-gray-700 hover:text-gray-900 focus:text-gray-900 focus:ring-primary/50 focus:ring-offset-white' 
+                  className={`transition-colors duration-200 font-semibold text-sm uppercase tracking-wide relative group cursor-pointer rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 whitespace-nowrap ${
+                    isScrolled && currentView !== 'search'
+                      ? 'text-gray-700 hover:text-gray-900 focus:text-gray-900 focus:ring-primary/50 focus:ring-offset-gray-100' 
                       : 'text-white/90 hover:text-white focus:text-white focus:ring-white/50 focus:ring-offset-transparent'
                   }`}
                 >
                   BERANDA
                   <span className={`absolute bottom-0 left-0 w-0 h-0.5 group-hover:w-full transition-all duration-300 ${
-                    isScrolled ? 'bg-primary' : 'bg-white'
+                    isScrolled && currentView !== 'search' ? 'bg-primary' : 'bg-white'
                   }`}></span>
                 </button>
                 <button
                   onClick={() => handleMenuClick('search', '/event')}
-                  className={`transition-colors duration-200 font-semibold text-sm uppercase tracking-wide relative group cursor-pointer rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                    isScrolled 
-                      ? 'text-gray-700 hover:text-gray-900 focus:text-gray-900 focus:ring-primary/50 focus:ring-offset-white' 
+                  className={`transition-colors duration-200 font-semibold text-sm uppercase tracking-wide relative group cursor-pointer rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 whitespace-nowrap ${
+                    isScrolled && currentView !== 'search'
+                      ? 'text-gray-700 hover:text-gray-900 focus:text-gray-900 focus:ring-primary/50 focus:ring-offset-gray-100' 
                       : 'text-white/90 hover:text-white focus:text-white focus:ring-white/50 focus:ring-offset-transparent'
                   }`}
                 >
                   CARI EVENT
                   <span className={`absolute bottom-0 left-0 w-0 h-0.5 group-hover:w-full transition-all duration-300 ${
-                    isScrolled ? 'bg-primary' : 'bg-white'
+                    isScrolled && currentView !== 'search' ? 'bg-primary' : 'bg-white'
                   }`}></span>
                 </button>
               </nav>
@@ -170,20 +179,20 @@ export function Header({
 
 
             {/* Right side: CTA Button */}
-            <div className="hidden md:flex items-center">
+            <div className="hidden md:flex items-center flex-shrink-0">
               {!loading && isLoggedIn ? (
                 <div className="relative" ref={dropdownRef}>
                   <Button
-                    variant={isScrolled ? "default" : "pill"}
+                    variant={isScrolled && currentView !== 'search' ? "default" : "pill"}
                     size="icon"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className={`transition-all duration-200 cursor-pointer rounded-full ${
-                      isScrolled 
+                    className={`transition-all duration-200 cursor-pointer rounded-full w-9 h-9 ${
+                      isScrolled && currentView !== 'search'
                         ? 'bg-primary text-white hover:bg-primary/90' 
                         : 'bg-white text-gray-900 hover:bg-gray-100 shadow-md hover:shadow-lg'
                     }`}
                   >
-                    <User className="h-5 w-5" />
+                    <User className="h-4 w-4" />
                   </Button>
 
                   {/* Dropdown Menu with Animation */}
@@ -218,19 +227,16 @@ export function Header({
                   )}
                 </div>
               ) : !loading ? (
-                <Button
-                  variant={isScrolled ? "default" : "pill"}
-                  size="sm"
+                <button
                   onClick={handleLoginClick}
-                  className={`px-5 py-2 text-sm flex items-center gap-2 transition-all duration-200 cursor-pointer ${
-                    isScrolled 
+                  className={`px-3 py-1.5 text-sm font-semibold transition-all duration-200 cursor-pointer rounded-lg whitespace-nowrap ${
+                    isScrolled && currentView !== 'search'
                       ? 'bg-primary text-white hover:bg-primary/90' 
                       : 'bg-white text-gray-900 hover:bg-gray-100'
                   }`}
                 >
                   MASUK
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
+                </button>
               ) : (
                 <div className="px-4 py-2">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -242,11 +248,11 @@ export function Header({
             <div className="md:hidden flex items-center space-x-3">
               {!loading && !isLoggedIn && (
                 <Button
-                  variant={isScrolled ? "default" : "pill"}
+                  variant={isScrolled && currentView !== 'search' ? "default" : "pill"}
                   size="sm"
                   onClick={handleLoginClick}
                   className={`px-4 py-2 text-xs transition-all duration-200 cursor-pointer ${
-                    isScrolled 
+                    isScrolled && currentView !== 'search'
                       ? 'bg-primary text-white hover:bg-primary/90' 
                       : 'bg-white text-gray-900 hover:bg-gray-100'
                   }`}
@@ -260,7 +266,7 @@ export function Header({
                     variant="ghost" 
                     size="sm" 
                     className={`p-2 transition-colors duration-200 ${
-                      isScrolled 
+                      isScrolled && currentView !== 'search'
                         ? 'text-gray-900 hover:bg-gray-100' 
                         : 'text-white hover:bg-white/20'
                     }`}

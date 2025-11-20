@@ -87,6 +87,18 @@ export default function EventPage() {
     const result = await registerEvent(eventId);
 
     if (result.success) {
+      // If payment is required, redirect to payment page immediately
+      if (result.data?.requiresPayment) {
+        // Don't show toast, redirect immediately
+        // Use eventId if available (new flow), otherwise use attendanceId (backward compatibility)
+        const paymentParam = result.data.eventId 
+          ? `event_id=${result.data.eventId}` 
+          : `attendance_id=${result.data.attendanceId}`;
+        router.push(`/payment?${paymentParam}`);
+        return;
+      }
+
+      // For free events, show success toast
       toast({
         variant: 'success',
         title: 'Pendaftaran Berhasil!',
@@ -158,16 +170,29 @@ export default function EventPage() {
     ) as EventCategory[];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-black relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+      </div>
+
       <Header currentView="search" />
       
-      <div className="container mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold mb-3 text-gray-900">Cari Event Favoritmu</h1>
-          <p className="text-gray-600 mb-5">
-            Temukan event yang sesuai dengan minat dan kebutuhanmu
-          </p>
-          
+      {/* Hero Section */}
+      <div className="relative z-10 pt-24 pb-12 md:pt-32 md:pb-16">
+        <div className="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl">
+          <div className="text-center mb-12 animate-in fade-in-0 slide-in-from-bottom-4">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 bg-gradient-to-r from-white via-teal-200 to-primary bg-clip-text text-transparent">
+              Temukan Event Terbaik
+            </h1>
+            <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto">
+              Jelajahi berbagai event menarik dan daftarkan diri Anda untuk pengalaman yang tak terlupakan
+            </p>
+          </div>
+
+          <div className="mb-8 animate-in fade-in-0 slide-in-from-bottom-4" style={{ animationDelay: '100ms' }}>
           <SearchFilters
             searchQuery={searchQuery}
             onSearchChange={handleSearchChange}
@@ -176,26 +201,34 @@ export default function EventPage() {
             onClearFilters={handleClearFilters}
             availableCategories={availableCategories}
           />
+          </div>
+        </div>
         </div>
 
-        <div className="mb-5">
+      <div className="container mx-auto px-4 md:px-6 lg:px-8 pb-6 relative z-10 max-w-7xl">
+        <div className="mb-5 animate-in fade-in-0 slide-in-from-bottom-4" style={{ animationDelay: '200ms' }}>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h2 className="font-semibold text-gray-900">
+            <div>
+              <h2 className="font-bold text-2xl md:text-3xl text-white mb-1">
               {loading ? 'Memuat...' : `${events.length} Event Ditemukan`}
             </h2>
+              <p className="text-sm text-gray-400">
+                {loading ? 'Mohon tunggu...' : 'Event terpilih untuk Anda'}
+              </p>
+            </div>
             <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-400 hidden md:block">
                 Diurutkan berdasarkan waktu terdekat
               </div>
-              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <div className="flex items-center gap-1 bg-gradient-to-br from-gray-800/60 via-gray-800/40 to-gray-900/60 backdrop-blur-sm rounded-lg p-1 border border-gray-700/50 shadow-lg">
                 <Button
                   variant={viewMode === 'grid' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('grid')}
-                  className={`h-8 px-3 transition-all ${
+                  className={`h-8 px-3 transition-all duration-300 ${
                     viewMode === 'grid'
-                      ? 'bg-white shadow-sm text-primary'
-                      : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-gradient-to-r from-primary via-teal-500 to-primary shadow-lg shadow-primary/40 text-white scale-105'
+                      : 'text-gray-400 hover:text-white hover:bg-gradient-to-r hover:from-gray-700/50 hover:to-gray-600/50'
                   }`}
                 >
                   <LayoutGrid className="h-4 w-4" />
@@ -204,10 +237,10 @@ export default function EventPage() {
                   variant={viewMode === 'list' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('list')}
-                  className={`h-8 px-3 transition-all ${
+                  className={`h-8 px-3 transition-all duration-300 ${
                     viewMode === 'list'
-                      ? 'bg-white shadow-sm text-primary'
-                      : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-gradient-to-r from-primary via-teal-500 to-primary shadow-lg shadow-primary/40 text-white scale-105'
+                      : 'text-gray-400 hover:text-white hover:bg-gradient-to-r hover:from-gray-700/50 hover:to-gray-600/50'
                   }`}
                 >
                   <List className="h-4 w-4" />
@@ -215,7 +248,7 @@ export default function EventPage() {
               </div>
             </div>
           </div>
-          <Separator className="mt-3 bg-gray-200" />
+          <Separator className="mt-4 bg-gradient-to-r from-transparent via-gray-700 to-transparent" />
         </div>
 
         {/* Event List/Grid */}
@@ -226,29 +259,29 @@ export default function EventPage() {
         }`}>
           {loading ? (
             Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className={`bg-white rounded-lg border border-gray-200 animate-pulse ${
+              <div key={index} className={`bg-gray-900 rounded-lg border border-gray-800 animate-pulse ${
                 viewMode === 'grid' ? 'p-6' : 'p-4'
               }`}>
                 {viewMode === 'grid' ? (
                   <>
-                    <div className="w-full h-48 bg-gray-200 rounded-lg mb-4"></div>
-                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+                    <div className="w-full h-48 bg-gray-800 rounded-lg mb-4"></div>
+                    <div className="h-4 bg-gray-800 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-800 rounded w-3/4 mb-4"></div>
                     <div className="space-y-2">
-                      <div className="h-3 bg-gray-200 rounded"></div>
-                      <div className="h-3 bg-gray-200 rounded"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      <div className="h-3 bg-gray-800 rounded"></div>
+                      <div className="h-3 bg-gray-800 rounded"></div>
+                      <div className="h-3 bg-gray-800 rounded w-1/2"></div>
                     </div>
                   </>
                 ) : (
                   <div className="flex gap-4">
-                    <div className="w-80 h-48 bg-gray-200 rounded-lg flex-shrink-0"></div>
+                    <div className="w-80 h-48 bg-gray-800 rounded-lg flex-shrink-0"></div>
                     <div className="flex-1 space-y-3">
-                      <div className="h-6 bg-gray-200 rounded"></div>
-                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                      <div className="h-6 bg-gray-800 rounded"></div>
+                      <div className="h-4 bg-gray-800 rounded w-3/4"></div>
                       <div className="space-y-2">
-                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                        <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+                        <div className="h-3 bg-gray-800 rounded w-1/2"></div>
+                        <div className="h-3 bg-gray-800 rounded w-1/3"></div>
                       </div>
                     </div>
                   </div>
@@ -259,41 +292,48 @@ export default function EventPage() {
             <div className={`text-center py-12 ${
               viewMode === 'grid' ? 'col-span-full' : ''
             }`}>
-              <Calendar className="h-16 w-16 mx-auto mb-4 text-red-300" />
-              <p className="text-lg font-semibold text-red-600">Gagal memuat event</p>
-              <p className="text-sm text-gray-500 mt-2">{error}</p>
+              <Calendar className="h-16 w-16 mx-auto mb-4 text-red-400" />
+              <p className="text-lg font-semibold text-red-400">Gagal memuat event</p>
+              <p className="text-sm text-gray-400 mt-2">{error}</p>
             </div>
           ) : sortedEvents.length === 0 ? (
             <div className={`text-center py-12 ${
               viewMode === 'grid' ? 'col-span-full' : ''
             }`}>
-              <Calendar className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-semibold text-gray-600">Tidak ada event ditemukan</p>
-              <p className="text-sm text-gray-500 mt-2">Coba ubah kata kunci pencarian</p>
+              <Calendar className="h-16 w-16 mx-auto mb-4 text-gray-500" />
+              <p className="text-lg font-semibold text-gray-300">Tidak ada event ditemukan</p>
+              <p className="text-sm text-gray-400 mt-2">Coba ubah kata kunci pencarian</p>
             </div>
           ) : (
-            sortedEvents.map((event) => (
-              viewMode === 'grid' ? (
+            sortedEvents.map((event, index) => (
+              <div
+                key={event.id}
+                className="animate-in fade-in-0 slide-in-from-bottom-4"
+                style={{
+                  animationDelay: `${index * 50}ms`,
+                  animationFillMode: 'both'
+                }}
+              >
+                {viewMode === 'grid' ? (
                 <EventCard
-                  key={event.id}
                   event={event}
                   onViewDetails={handleViewEvent}
                   onRegister={handleRegisterEvent}
-                  onCheckIn={handleCheckInClick}
+                    onCheckIn={handleCheckInClick}
                   isLoggedIn={isLoggedIn}
                   fromPage="event"
                 />
               ) : (
                 <EventCardList
-                  key={event.id}
                   event={event}
                   onViewDetails={handleViewEvent}
                   onRegister={handleRegisterEvent}
-                  onCheckIn={handleCheckInClick}
+                    onCheckIn={handleCheckInClick}
                   isLoggedIn={isLoggedIn}
                   fromPage="event"
                 />
-              )
+                )}
+              </div>
             ))
           )}
         </div>

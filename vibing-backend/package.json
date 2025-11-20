@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "canvas": "^3.2.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
@@ -28,18 +29,21 @@
     "express": "^5.1.0",
     "express-validator": "^7.3.0",
     "fs": "^0.0.1-security",
+    "image-size": "^2.0.2",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
     "mysql2": "^3.15.3",
     "nodemailer": "^7.0.10",
     "path": "^0.12.7",
+    "pdfkit": "^0.17.2",
     "reflect-metadata": "^0.2.2",
     "slugify": "^1.6.6",
     "typeorm": "^0.3.27",
     "winston": "^3.18.3",
-    "winston-daily-rotate-file": "^5.0.0"
+    "winston-daily-rotate-file": "^5.0.0",
+    "xendit-node": "^7.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.11"
   }
 }

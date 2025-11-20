@@ -72,6 +72,27 @@ export class EventService {
     });
   }
 
+  static formatEventDateTime(dateString: string): string {
+    const date = new Date(dateString);
+    return date.toLocaleString('id-ID', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Jakarta'
+    });
+  }
+
+  static isSameDay(date1: string | Date, date2: string | Date): boolean {
+    const d1 = new Date(date1);
+    const d2 = new Date(date2);
+    return d1.getFullYear() === d2.getFullYear() &&
+           d1.getMonth() === d2.getMonth() &&
+           d1.getDate() === d2.getDate();
+  }
+
   static formatPrice(price: number | string | undefined | null): string {
     // Convert to number jika berupa string
     const numPrice = typeof price === 'string' ? parseFloat(price) : price;
@@ -135,15 +156,28 @@ export class EventService {
     return colors[categoryName] || 'bg-gray-50 text-gray-700 border-gray-200';
   }
 
-  static async registerEvent(eventId: number): Promise<{ success: boolean; message: string; error?: string }> {
-    const result = await ApiClient.request<{ message: string }>(`/event/${eventId}/register`, {
+  static async registerEvent(eventId: number): Promise<{ 
+    success: boolean; 
+    message: string; 
+    error?: string;
+    data?: {
+      eventId?: number;
+      attendanceId?: number;
+      requiresPayment?: boolean;
+      amount?: number;
+    };
+  }> {
+    const result = await ApiClient.request<{ message: string; data?: { eventId?: number; attendanceId?: number; requiresPayment: boolean; amount: number } }>(`/event/${eventId}/register`, {
       method: 'POST',
     });
 
-    if (result.success) {
+    if (result.success && result.data) {
+      // Backend returns { message, data: { eventId/attendanceId, requiresPayment, amount } }
+      // ApiClient wraps it as { success: true, data: { message, data: {...} }, message }
       return {
         success: true,
-        message: result.message || 'Berhasil mendaftar. Kode token dikirim ke email Anda.'
+        message: result.data.message || result.message || 'Berhasil mendaftar. Kode token dikirim ke email Anda.',
+        data: result.data.data // Access nested data property
       };
     }
 

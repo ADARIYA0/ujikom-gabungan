@@ -140,8 +140,7 @@ exports.login = async (req, res) => {
         });
         await userTokenRepository.save(userToken);
 
-        logger.info(`Login successful: userId=${user.id}, email=${email}`);
-        logger.debug('Generated JWT payload', { id: user.id });
+        logger.info(`Login successful: userId=${user.id}`);
 
         res.cookie(COOKIE_NAME, refreshToken, cookieOptions);
         res.status(200).json({
@@ -183,7 +182,14 @@ exports.refreshToken = async (req, res) => {
             return res.status(500).json({ message: 'Internal server error' });
         }
 
-        const { accessToken, refreshToken: newRefreshToken } = generateTokens(userData);
+        // Ensure role is included when generating new tokens
+        const userForToken = {
+            id: userData.id,
+            email: userData.email,
+            role: role || (userData.role || 'user')
+        };
+
+        const { accessToken, refreshToken: newRefreshToken } = generateTokens(userForToken);
 
         userToken.refresh_token = newRefreshToken;
         userToken.expires_at = new Date(Date.now() + ms(process.env.JWT_REFRESH_EXPIRES));
@@ -264,7 +270,6 @@ exports.verifyOtp = async (req, res) => {
 
         if (!otpMatch) {
             user.otp_attempts = (user.otp_attempts || 0) + 1;
-            logger.debug(`OTP attempt ${user.otp_attempts}/${maxAttempts} for email=${email}`);
 
             if (user.otp_attempts >= maxAttempts) {
                 user.otp_verify_locked_until = new Date(Date.now() + lockMinutes * 60 * 1000);
@@ -315,7 +320,6 @@ exports.checkLockStatus = async (req, res) => {
         }
 
         const now = new Date();
-        logger.debug(`Checking lock status for user: ${email}, otp_verify_locked_until: ${user.otp_verify_locked_until}, current time: ${now}`);
 
         if (user.otp_verify_locked_until && now < new Date(user.otp_verify_locked_until)) {
             const remainingSeconds = Math.ceil((new Date(user.otp_verify_locked_until) - now) / 1000);
@@ -531,8 +535,6 @@ exports.requestPasswordReset = async (req, res) => {
         const currentRequestCount = user.password_reset_request_count;
         user.password_reset_last_sent_at = now;
         await userRepository.save(user);
-
-        logger.debug(`User requested password reset ${currentRequestCount}/${resendLimit}: email=${email}, expiresAt=${user.password_reset_expiry}`);
 
         try {
             await sendPasswordReset(email, otp, expiresMinutes);

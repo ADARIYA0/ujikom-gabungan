@@ -89,14 +89,17 @@ export function SearchFilters({
   return (
     <div className="space-y-4">
       {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-        <Input
-          placeholder="Cari event berdasarkan nama..."
-          value={localSearchQuery}
-          onChange={(e) => setLocalSearchQuery(e.target.value)}
-          className="pl-10 pr-4 py-2.5 rounded-lg border-2 border-gray-200 focus:border-primary transition-colors bg-white"
-        />
+      <div className="relative group">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/30 via-teal-500/30 to-primary/30 rounded-lg blur-xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-300"></div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 group-hover:text-primary group-focus-within:text-primary transition-colors duration-300" />
+          <Input
+            placeholder="Cari event berdasarkan nama..."
+            value={localSearchQuery}
+            onChange={(e) => setLocalSearchQuery(e.target.value)}
+            className="pl-10 pr-4 py-3 rounded-lg border-2 border-gray-700/50 focus:border-primary focus:ring-2 focus:ring-primary/30 transition-all duration-300 bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 text-white placeholder:text-gray-500 hover:border-primary/50 hover:bg-gray-900/80 backdrop-blur-sm"
+          />
+        </div>
       </div>
 
       {/* Filter Controls */}
@@ -105,11 +108,11 @@ export function SearchFilters({
         <div className="md:hidden">
           <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="relative border-gray-200 text-gray-700 hover:bg-gray-50">
+              <Button variant="outline" className="relative border-gray-700/50 text-gray-300 hover:bg-gradient-to-r hover:from-gray-800 hover:to-gray-700 hover:border-primary/50 bg-gradient-to-br from-gray-900 to-gray-800 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10">
                 <Filter className="h-4 w-4 mr-2" />
                 Filter
                 {getActiveFiltersCount() > 0 && (
-                  <Badge className="ml-2 bg-primary text-white text-xs">
+                  <Badge className="ml-2 bg-gradient-to-r from-primary to-teal-500 text-white text-xs shadow-lg shadow-primary/30">
                     {getActiveFiltersCount()}
                   </Badge>
                 )}
@@ -179,7 +182,7 @@ export function SearchFilters({
         {/* Quick Filters */}
         <div className="hidden md:flex items-center gap-3">
           <Select value={filters.category} onValueChange={(value) => handleFilterChange('category', value)}>
-            <SelectTrigger className="w-44 h-10 border-gray-200 text-sm">
+            <SelectTrigger className="w-44 h-10 border-gray-700/50 text-sm bg-gradient-to-br from-gray-900 to-gray-800 text-gray-300 hover:border-primary/50 hover:bg-gray-900/80 transition-all duration-300">
               <SelectValue placeholder="Semua Kategori" />
             </SelectTrigger>
             <SelectContent>
@@ -193,7 +196,7 @@ export function SearchFilters({
           </Select>
 
           <Select value={filters.dateRange} onValueChange={(value) => handleFilterChange('dateRange', value)}>
-            <SelectTrigger className="w-36 h-10 border-gray-200 text-sm">
+            <SelectTrigger className="w-36 h-10 border-gray-700/50 text-sm bg-gradient-to-br from-gray-900 to-gray-800 text-gray-300 hover:border-primary/50 hover:bg-gray-900/80 transition-all duration-300">
               <SelectValue placeholder="Semua Waktu" />
             </SelectTrigger>
             <SelectContent>
@@ -221,17 +224,17 @@ export function SearchFilters({
       {/* Active Filters */}
       {getActiveFilters().length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-gray-600">Filter aktif:</span>
+          <span className="text-sm text-gray-400">Filter aktif:</span>
           {getActiveFilters().map((filter, index) => (
             <Badge
               key={index}
               variant="secondary"
-              className="flex items-center gap-1 bg-teal-50 text-teal-700 border-teal-200 text-xs"
+              className="flex items-center gap-1 bg-gradient-to-r from-teal-900/80 to-primary/80 text-teal-100 border-teal-600/50 text-xs shadow-md shadow-teal-500/20 hover:shadow-teal-500/30 transition-all duration-300"
             >
               {filter.label}
               <button
                 onClick={() => removeFilter(filter.key)}
-                className="ml-1 hover:bg-teal-100 rounded-full p-0.5"
+                className="ml-1 hover:bg-white/10 rounded-full p-0.5 transition-colors"
               >
                 <X className="h-3 w-3" />
               </button>

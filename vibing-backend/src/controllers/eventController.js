@@ -25,17 +25,14 @@ exports.getAllEvent = async (req, res) => {
 
         if (req.query.category) {
             qb.andWhere('category.slug = :slug', { slug: req.query.category });
-            logger.debug(`Filtering by category slug=${req.query.category}`);
         }
 
         if (req.query.search) {
             qb.andWhere('(kegiatan.judul_kegiatan LIKE :q OR kegiatan.deskripsi_kegiatan LIKE :q)', { q: `%${req.query.search}%` });
-            logger.debug(`Searching with query="${req.query.search}"`);
         }
 
         if (req.query.upcoming === 'true') {
             qb.andWhere('kegiatan.waktu_berakhir >= :now', { now: new Date() });
-            logger.debug('Filtering only upcoming events');
         }
 
         if (req.query.time_range) {
@@ -66,8 +63,6 @@ exports.getAllEvent = async (req, res) => {
                 default:
                     logger.warn(`Unknown time_range filter: ${req.query.time_range}`);
             }
-
-            logger.debug(`Filtering by time_range=${req.query.time_range}`);
         }
 
         const [items, total] = await qb.skip(offset).take(limit).getManyAndCount();
@@ -81,17 +76,45 @@ exports.getAllEvent = async (req, res) => {
             const is_full = (ev.kapasitas_peserta > 0) && (count >= ev.kapasitas_peserta);
 
             // Check if user is registered for this event
+            // For paid events, user is only considered registered if payment is paid
             let is_registered = false;
             let attendance_status = null;
             if (userId) {
-                const userAttendance = await attendanceRepo().createQueryBuilder('d')
-                    .where('d.event = :eventId', { eventId: ev.id })
-                    .andWhere('d.user = :userId', { userId })
-                    .getOne();
+                const isPaidEvent = Number(ev.harga) > 0;
                 
-                if (userAttendance) {
-                    is_registered = true;
-                    attendance_status = userAttendance.status_absen;
+                if (isPaidEvent) {
+                    const userAttendance = await attendanceRepo()
+                        .createQueryBuilder('d')
+                        .leftJoin('d.payment', 'payment')
+                        .addSelect([
+                            'payment.id',
+                            'payment.status',
+                            'payment.amount',
+                            'payment.paid_at'
+                        ])
+                        .where('d.event = :eventId', { eventId: ev.id })
+                        .andWhere('d.user = :userId', { userId })
+                        .getOne();
+                    
+                    if (userAttendance) {
+                        // Only consider registered if payment exists and is paid
+                        if (userAttendance.payment && userAttendance.payment.status === 'paid') {
+                            is_registered = true;
+                            attendance_status = userAttendance.status_absen;
+                        }
+                        // If payment is pending, user is not considered registered yet
+                    }
+                } else {
+                    // For free events, just check if attendance exists
+                    const userAttendance = await attendanceRepo().createQueryBuilder('d')
+                        .where('d.event = :eventId', { eventId: ev.id })
+                        .andWhere('d.user = :userId', { userId })
+                        .getOne();
+                    
+                    if (userAttendance) {
+                        is_registered = true;
+                        attendance_status = userAttendance.status_absen;
+                    }
                 }
             }
 
@@ -129,6 +152,227 @@ exports.getAllEvent = async (req, res) => {
     }
 };
 
+exports.updateEvent = async (req, res) => {
+    try {
+        const eventId = parseInt(req.params.id, 10);
+        if (isNaN(eventId)) {
+            return res.status(400).json({ message: 'Invalid event ID' });
+        }
+
+        const meta = {
+            ip: req.ip,
+            userAgent: req.get('User-Agent'),
+            eventId,
+            files: Object.keys(req.files || {})
+        };
+        logger.info('PUT /event/:id update request', meta);
+
+        const existingEvent = await eventRepo().findOne({ where: { id: eventId } });
+        if (!existingEvent) {
+            return res.status(404).json({ message: 'Event tidak ditemukan' });
+        }
+
+        const {
+            judul_kegiatan,
+            slug: providedSlug,
+            deskripsi_kegiatan,
+            lokasi_kegiatan,
+            kapasitas_peserta,
+            harga,
+            waktu_mulai,
+            waktu_berakhir,
+            kategori_id,
+            kategori_slug
+        } = req.body;
+
+        let category = null;
+        if (kategori_id) {
+            category = await categoryRepo().findOne({ where: { id: parseInt(kategori_id, 10) } });
+            if (!category) {
+                logger.warn('Kategori tidak ditemukan saat update event', { kategori_id });
+                return res.status(400).json({ message: 'Kategori tidak ditemukan' });
+            }
+        } else if (kategori_slug) {
+            category = await categoryRepo().findOne({ where: { slug: kategori_slug } });
+            if (!category) {
+                logger.warn('Kategori slug tidak ditemukan saat update event', { kategori_slug });
+                return res.status(400).json({ message: 'Kategori tidak ditemukan' });
+            }
+        }
+
+        // Check for duplicate title at same date (excluding current event)
+        if (judul_kegiatan && waktu_mulai) {
+            const title = judul_kegiatan.trim();
+            const startDate = new Date(waktu_mulai);
+            const existing = await eventRepo()
+                .createQueryBuilder('e')
+                .where('LOWER(e.judul_kegiatan) = LOWER(:title)', { title })
+                .andWhere('DATE(e.waktu_mulai) = DATE(:start)', { start: startDate })
+                .andWhere('e.id != :eventId', { eventId })
+                .getOne();
+
+            if (existing) {
+                logger.warn('Duplicate event title at same date detected', { title, start: startDate });
+                return res.status(409).json({ message: 'Event dengan judul yang sama pada tanggal tersebut sudah ada' });
+            }
+        }
+
+        let eventSlug = providedSlug ? slugify(providedSlug, { lower: true, strict: true }) :
+            (judul_kegiatan ? slugify(judul_kegiatan, { lower: true, strict: true }) : existingEvent.slug);
+
+        // Make sure slug is unique (append counter if necessary)
+        let counter = 0;
+        let exists = await eventRepo().findOne({ where: { slug: eventSlug } });
+        while (exists && exists.id !== eventId) {
+            counter += 1;
+            eventSlug = `${eventSlug}-${counter}`;
+            exists = await eventRepo().findOne({ where: { slug: eventSlug } });
+        }
+
+        const uploadBase = path.join(__dirname, '..', '..', 'uploads');
+        const flyerFile = req.files?.flyer_kegiatan?.[0] || null;
+        const sertifikatFile = req.files?.sertifikat_kegiatan?.[0] || null;
+
+        let flyer = existingEvent.flyer_kegiatan;
+        let sertifikat = existingEvent.sertifikat_kegiatan;
+
+        try {
+            if (flyerFile) {
+                // Delete old flyer if exists
+                if (existingEvent.flyer_kegiatan) {
+                    const oldFlyerPath = path.join(uploadBase, 'flyer', existingEvent.flyer_kegiatan);
+                    cleanupFiles([oldFlyerPath]);
+                }
+                const res = await renameUploadedFileToSlug(flyerFile, path.join(uploadBase, 'flyer'), `${eventSlug}-flyer`);
+                flyer = res.filename;
+            }
+            if (sertifikatFile) {
+                // Delete old certificate if exists
+                if (existingEvent.sertifikat_kegiatan) {
+                    const oldCertPath = path.join(uploadBase, 'certificates', existingEvent.sertifikat_kegiatan);
+                    cleanupFiles([oldCertPath]);
+                }
+                const res = await renameUploadedFileToSlug(sertifikatFile, path.join(uploadBase, 'certificates'), `${eventSlug}-certificate`);
+                sertifikat = res.filename;
+            }
+        } catch (err) {
+            const filePathsToCleanup = [
+                flyerFile?.path,
+                sertifikatFile?.path
+            ].filter(Boolean);
+            cleanupFiles(filePathsToCleanup);
+            logger.error('File rename to slug failed', { error: err.message, stack: err.stack });
+            return res.status(500).json({ message: 'Failed to process uploaded files' });
+        }
+
+        const updateData = {
+            ...(judul_kegiatan && { judul_kegiatan }),
+            ...(eventSlug && { slug: eventSlug }),
+            ...(deskripsi_kegiatan && { deskripsi_kegiatan }),
+            ...(lokasi_kegiatan && { lokasi_kegiatan }),
+            ...(flyer !== undefined && { flyer_kegiatan: flyer }),
+            ...(sertifikat !== undefined && { sertifikat_kegiatan: sertifikat }),
+            ...(kapasitas_peserta !== undefined && { kapasitas_peserta: parseInt(kapasitas_peserta, 10) }),
+            ...(harga !== undefined && { harga: parseFloat(harga) }),
+            ...(waktu_mulai && { waktu_mulai: new Date(waktu_mulai) }),
+            ...(waktu_berakhir && { waktu_berakhir: new Date(waktu_berakhir) }),
+            ...(category && { category: { id: category.id } })
+        };
+
+        const updated = await AppDataSource.manager.transaction(async (manager) => {
+            const repo = manager.getRepository('Event');
+            await repo.update(eventId, updateData);
+            return await repo.findOne({ 
+                where: { id: eventId },
+                relations: ['category']
+            });
+        });
+
+        logger.info('Event updated', { id: updated.id, slug: updated.slug });
+        return res.status(200).json({
+            message: 'Event updated',
+            data: {
+                id: updated.id,
+                judul_kegiatan: updated.judul_kegiatan,
+                slug: updated.slug,
+                waktu_mulai: updated.waktu_mulai,
+                waktu_berakhir: updated.waktu_berakhir
+            }
+        });
+    } catch (error) {
+        const toCleanup = [];
+        toCleanup.push(req.files?.flyer_kegiatan?.[0]?.path);
+        toCleanup.push(req.files?.sertifikat_kegiatan?.[0]?.path);
+        cleanupFiles(toCleanup.filter(Boolean));
+
+        logger.error('updateEvent unexpected error', {
+            code: error.code,
+            errno: error.errno,
+            message: error,
+            stack: error.stack
+        });
+
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+exports.deleteEvent = async (req, res) => {
+    try {
+        const eventId = parseInt(req.params.id, 10);
+        if (isNaN(eventId)) {
+            return res.status(400).json({ message: 'Invalid event ID' });
+        }
+
+        logger.info('DELETE /event/:id delete request', { eventId, ip: req.ip });
+
+        const event = await eventRepo().findOne({ where: { id: eventId } });
+        if (!event) {
+            return res.status(404).json({ message: 'Event tidak ditemukan' });
+        }
+
+        // Check if event has any attendance records
+        const attendanceCount = await attendanceRepo().count({ where: { event: { id: eventId } } });
+        if (attendanceCount > 0) {
+            return res.status(409).json({ 
+                message: `Event tidak dapat dihapus karena sudah memiliki ${attendanceCount} peserta terdaftar` 
+            });
+        }
+
+        // Delete associated files
+        const uploadBase = path.join(__dirname, '..', '..', 'uploads');
+        const filesToDelete = [];
+        
+        if (event.flyer_kegiatan) {
+            filesToDelete.push(path.join(uploadBase, 'flyer', event.flyer_kegiatan));
+        }
+        if (event.sertifikat_kegiatan) {
+            filesToDelete.push(path.join(uploadBase, 'certificates', event.sertifikat_kegiatan));
+        }
+        
+        cleanupFiles(filesToDelete);
+
+        // Delete event
+        await eventRepo().delete(eventId);
+
+        logger.info('Event deleted', { id: eventId, slug: event.slug });
+        return res.status(200).json({
+            message: 'Event berhasil dihapus',
+            data: {
+                id: eventId
+            }
+        });
+    } catch (error) {
+        logger.error('deleteEvent unexpected error', {
+            code: error.code,
+            errno: error.errno,
+            message: error,
+            stack: error.stack
+        });
+
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 exports.getEventBySlug = async (req, res) => {
     try {
         const { slug } = req.params;
@@ -149,18 +393,47 @@ exports.getEventBySlug = async (req, res) => {
             .getCount();
 
         // Check if user is registered for this event
+        // For paid events, user is only considered registered if payment is paid
         const userId = req.user?.id || null;
         let is_registered = false;
         let attendance_status = null;
         if (userId) {
-            const userAttendance = await attendanceRepo().createQueryBuilder('d')
-                .where('d.event = :eventId', { eventId: ev.id })
-                .andWhere('d.user = :userId', { userId })
-                .getOne();
+            const isPaidEvent = Number(ev.harga) > 0;
             
-            if (userAttendance) {
-                is_registered = true;
-                attendance_status = userAttendance.status_absen;
+            if (isPaidEvent) {
+                // For paid events, check attendance with payment status
+                const userAttendance = await attendanceRepo()
+                    .createQueryBuilder('d')
+                    .leftJoin('d.payment', 'payment')
+                    .addSelect([
+                        'payment.id',
+                        'payment.status',
+                        'payment.amount',
+                        'payment.paid_at'
+                    ])
+                    .where('d.event = :eventId', { eventId: ev.id })
+                    .andWhere('d.user = :userId', { userId })
+                    .getOne();
+                
+                if (userAttendance) {
+                    // Only consider registered if payment exists and is paid
+                    if (userAttendance.payment && userAttendance.payment.status === 'paid') {
+                        is_registered = true;
+                        attendance_status = userAttendance.status_absen;
+                    }
+                    // If payment is pending, user is not considered registered yet
+                }
+            } else {
+                // For free events, just check if attendance exists
+                const userAttendance = await attendanceRepo().createQueryBuilder('d')
+                    .where('d.event = :eventId', { eventId: ev.id })
+                    .andWhere('d.user = :userId', { userId })
+                    .getOne();
+                
+                if (userAttendance) {
+                    is_registered = true;
+                    attendance_status = userAttendance.status_absen;
+                }
             }
         }
 
@@ -197,6 +470,227 @@ exports.getEventBySlug = async (req, res) => {
     }
 };
 
+exports.updateEvent = async (req, res) => {
+    try {
+        const eventId = parseInt(req.params.id, 10);
+        if (isNaN(eventId)) {
+            return res.status(400).json({ message: 'Invalid event ID' });
+        }
+
+        const meta = {
+            ip: req.ip,
+            userAgent: req.get('User-Agent'),
+            eventId,
+            files: Object.keys(req.files || {})
+        };
+        logger.info('PUT /event/:id update request', meta);
+
+        const existingEvent = await eventRepo().findOne({ where: { id: eventId } });
+        if (!existingEvent) {
+            return res.status(404).json({ message: 'Event tidak ditemukan' });
+        }
+
+        const {
+            judul_kegiatan,
+            slug: providedSlug,
+            deskripsi_kegiatan,
+            lokasi_kegiatan,
+            kapasitas_peserta,
+            harga,
+            waktu_mulai,
+            waktu_berakhir,
+            kategori_id,
+            kategori_slug
+        } = req.body;
+
+        let category = null;
+        if (kategori_id) {
+            category = await categoryRepo().findOne({ where: { id: parseInt(kategori_id, 10) } });
+            if (!category) {
+                logger.warn('Kategori tidak ditemukan saat update event', { kategori_id });
+                return res.status(400).json({ message: 'Kategori tidak ditemukan' });
+            }
+        } else if (kategori_slug) {
+            category = await categoryRepo().findOne({ where: { slug: kategori_slug } });
+            if (!category) {
+                logger.warn('Kategori slug tidak ditemukan saat update event', { kategori_slug });
+                return res.status(400).json({ message: 'Kategori tidak ditemukan' });
+            }
+        }
+
+        // Check for duplicate title at same date (excluding current event)
+        if (judul_kegiatan && waktu_mulai) {
+            const title = judul_kegiatan.trim();
+            const startDate = new Date(waktu_mulai);
+            const existing = await eventRepo()
+                .createQueryBuilder('e')
+                .where('LOWER(e.judul_kegiatan) = LOWER(:title)', { title })
+                .andWhere('DATE(e.waktu_mulai) = DATE(:start)', { start: startDate })
+                .andWhere('e.id != :eventId', { eventId })
+                .getOne();
+
+            if (existing) {
+                logger.warn('Duplicate event title at same date detected', { title, start: startDate });
+                return res.status(409).json({ message: 'Event dengan judul yang sama pada tanggal tersebut sudah ada' });
+            }
+        }
+
+        let eventSlug = providedSlug ? slugify(providedSlug, { lower: true, strict: true }) :
+            (judul_kegiatan ? slugify(judul_kegiatan, { lower: true, strict: true }) : existingEvent.slug);
+
+        // Make sure slug is unique (append counter if necessary)
+        let counter = 0;
+        let exists = await eventRepo().findOne({ where: { slug: eventSlug } });
+        while (exists && exists.id !== eventId) {
+            counter += 1;
+            eventSlug = `${eventSlug}-${counter}`;
+            exists = await eventRepo().findOne({ where: { slug: eventSlug } });
+        }
+
+        const uploadBase = path.join(__dirname, '..', '..', 'uploads');
+        const flyerFile = req.files?.flyer_kegiatan?.[0] || null;
+        const sertifikatFile = req.files?.sertifikat_kegiatan?.[0] || null;
+
+        let flyer = existingEvent.flyer_kegiatan;
+        let sertifikat = existingEvent.sertifikat_kegiatan;
+
+        try {
+            if (flyerFile) {
+                // Delete old flyer if exists
+                if (existingEvent.flyer_kegiatan) {
+                    const oldFlyerPath = path.join(uploadBase, 'flyer', existingEvent.flyer_kegiatan);
+                    cleanupFiles([oldFlyerPath]);
+                }
+                const res = await renameUploadedFileToSlug(flyerFile, path.join(uploadBase, 'flyer'), `${eventSlug}-flyer`);
+                flyer = res.filename;
+            }
+            if (sertifikatFile) {
+                // Delete old certificate if exists
+                if (existingEvent.sertifikat_kegiatan) {
+                    const oldCertPath = path.join(uploadBase, 'certificates', existingEvent.sertifikat_kegiatan);
+                    cleanupFiles([oldCertPath]);
+                }
+                const res = await renameUploadedFileToSlug(sertifikatFile, path.join(uploadBase, 'certificates'), `${eventSlug}-certificate`);
+                sertifikat = res.filename;
+            }
+        } catch (err) {
+            const filePathsToCleanup = [
+                flyerFile?.path,
+                sertifikatFile?.path
+            ].filter(Boolean);
+            cleanupFiles(filePathsToCleanup);
+            logger.error('File rename to slug failed', { error: err.message, stack: err.stack });
+            return res.status(500).json({ message: 'Failed to process uploaded files' });
+        }
+
+        const updateData = {
+            ...(judul_kegiatan && { judul_kegiatan }),
+            ...(eventSlug && { slug: eventSlug }),
+            ...(deskripsi_kegiatan && { deskripsi_kegiatan }),
+            ...(lokasi_kegiatan && { lokasi_kegiatan }),
+            ...(flyer !== undefined && { flyer_kegiatan: flyer }),
+            ...(sertifikat !== undefined && { sertifikat_kegiatan: sertifikat }),
+            ...(kapasitas_peserta !== undefined && { kapasitas_peserta: parseInt(kapasitas_peserta, 10) }),
+            ...(harga !== undefined && { harga: parseFloat(harga) }),
+            ...(waktu_mulai && { waktu_mulai: new Date(waktu_mulai) }),
+            ...(waktu_berakhir && { waktu_berakhir: new Date(waktu_berakhir) }),
+            ...(category && { category: { id: category.id } })
+        };
+
+        const updated = await AppDataSource.manager.transaction(async (manager) => {
+            const repo = manager.getRepository('Event');
+            await repo.update(eventId, updateData);
+            return await repo.findOne({ 
+                where: { id: eventId },
+                relations: ['category']
+            });
+        });
+
+        logger.info('Event updated', { id: updated.id, slug: updated.slug });
+        return res.status(200).json({
+            message: 'Event updated',
+            data: {
+                id: updated.id,
+                judul_kegiatan: updated.judul_kegiatan,
+                slug: updated.slug,
+                waktu_mulai: updated.waktu_mulai,
+                waktu_berakhir: updated.waktu_berakhir
+            }
+        });
+    } catch (error) {
+        const toCleanup = [];
+        toCleanup.push(req.files?.flyer_kegiatan?.[0]?.path);
+        toCleanup.push(req.files?.sertifikat_kegiatan?.[0]?.path);
+        cleanupFiles(toCleanup.filter(Boolean));
+
+        logger.error('updateEvent unexpected error', {
+            code: error.code,
+            errno: error.errno,
+            message: error,
+            stack: error.stack
+        });
+
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+exports.deleteEvent = async (req, res) => {
+    try {
+        const eventId = parseInt(req.params.id, 10);
+        if (isNaN(eventId)) {
+            return res.status(400).json({ message: 'Invalid event ID' });
+        }
+
+        logger.info('DELETE /event/:id delete request', { eventId, ip: req.ip });
+
+        const event = await eventRepo().findOne({ where: { id: eventId } });
+        if (!event) {
+            return res.status(404).json({ message: 'Event tidak ditemukan' });
+        }
+
+        // Check if event has any attendance records
+        const attendanceCount = await attendanceRepo().count({ where: { event: { id: eventId } } });
+        if (attendanceCount > 0) {
+            return res.status(409).json({ 
+                message: `Event tidak dapat dihapus karena sudah memiliki ${attendanceCount} peserta terdaftar` 
+            });
+        }
+
+        // Delete associated files
+        const uploadBase = path.join(__dirname, '..', '..', 'uploads');
+        const filesToDelete = [];
+        
+        if (event.flyer_kegiatan) {
+            filesToDelete.push(path.join(uploadBase, 'flyer', event.flyer_kegiatan));
+        }
+        if (event.sertifikat_kegiatan) {
+            filesToDelete.push(path.join(uploadBase, 'certificates', event.sertifikat_kegiatan));
+        }
+        
+        cleanupFiles(filesToDelete);
+
+        // Delete event
+        await eventRepo().delete(eventId);
+
+        logger.info('Event deleted', { id: eventId, slug: event.slug });
+        return res.status(200).json({
+            message: 'Event berhasil dihapus',
+            data: {
+                id: eventId
+            }
+        });
+    } catch (error) {
+        logger.error('deleteEvent unexpected error', {
+            code: error.code,
+            errno: error.errno,
+            message: error,
+            stack: error.stack
+        });
+
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 exports.getEventById = async (req, res) => {
     try {
         const id = parseInt(req.params.id);
@@ -217,18 +711,47 @@ exports.getEventById = async (req, res) => {
             .getCount();
 
         // Check if user is registered for this event
+        // For paid events, user is only considered registered if payment is paid
         const userId = req.user?.id || null;
         let is_registered = false;
         let attendance_status = null;
         if (userId) {
-            const userAttendance = await attendanceRepo().createQueryBuilder('d')
-                .where('d.event = :eventId', { eventId: ev.id })
-                .andWhere('d.user = :userId', { userId })
-                .getOne();
+            const isPaidEvent = Number(ev.harga) > 0;
             
-            if (userAttendance) {
-                is_registered = true;
-                attendance_status = userAttendance.status_absen;
+            if (isPaidEvent) {
+                // For paid events, check attendance with payment status
+                const userAttendance = await attendanceRepo()
+                    .createQueryBuilder('d')
+                    .leftJoin('d.payment', 'payment')
+                    .addSelect([
+                        'payment.id',
+                        'payment.status',
+                        'payment.amount',
+                        'payment.paid_at'
+                    ])
+                    .where('d.event = :eventId', { eventId: ev.id })
+                    .andWhere('d.user = :userId', { userId })
+                    .getOne();
+                
+                if (userAttendance) {
+                    // Only consider registered if payment exists and is paid
+                    if (userAttendance.payment && userAttendance.payment.status === 'paid') {
+                        is_registered = true;
+                        attendance_status = userAttendance.status_absen;
+                    }
+                    // If payment is pending, user is not considered registered yet
+                }
+            } else {
+                // For free events, just check if attendance exists
+                const userAttendance = await attendanceRepo().createQueryBuilder('d')
+                    .where('d.event = :eventId', { eventId: ev.id })
+                    .andWhere('d.user = :userId', { userId })
+                    .getOne();
+                
+                if (userAttendance) {
+                    is_registered = true;
+                    attendance_status = userAttendance.status_absen;
+                }
             }
         }
 
@@ -260,6 +783,227 @@ exports.getEventById = async (req, res) => {
         return res.json(response);
     } catch (error) {
         logger.error(`getEventById error: ${error}`, { stack: error.stack });
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+exports.updateEvent = async (req, res) => {
+    try {
+        const eventId = parseInt(req.params.id, 10);
+        if (isNaN(eventId)) {
+            return res.status(400).json({ message: 'Invalid event ID' });
+        }
+
+        const meta = {
+            ip: req.ip,
+            userAgent: req.get('User-Agent'),
+            eventId,
+            files: Object.keys(req.files || {})
+        };
+        logger.info('PUT /event/:id update request', meta);
+
+        const existingEvent = await eventRepo().findOne({ where: { id: eventId } });
+        if (!existingEvent) {
+            return res.status(404).json({ message: 'Event tidak ditemukan' });
+        }
+
+        const {
+            judul_kegiatan,
+            slug: providedSlug,
+            deskripsi_kegiatan,
+            lokasi_kegiatan,
+            kapasitas_peserta,
+            harga,
+            waktu_mulai,
+            waktu_berakhir,
+            kategori_id,
+            kategori_slug
+        } = req.body;
+
+        let category = null;
+        if (kategori_id) {
+            category = await categoryRepo().findOne({ where: { id: parseInt(kategori_id, 10) } });
+            if (!category) {
+                logger.warn('Kategori tidak ditemukan saat update event', { kategori_id });
+                return res.status(400).json({ message: 'Kategori tidak ditemukan' });
+            }
+        } else if (kategori_slug) {
+            category = await categoryRepo().findOne({ where: { slug: kategori_slug } });
+            if (!category) {
+                logger.warn('Kategori slug tidak ditemukan saat update event', { kategori_slug });
+                return res.status(400).json({ message: 'Kategori tidak ditemukan' });
+            }
+        }
+
+        // Check for duplicate title at same date (excluding current event)
+        if (judul_kegiatan && waktu_mulai) {
+            const title = judul_kegiatan.trim();
+            const startDate = new Date(waktu_mulai);
+            const existing = await eventRepo()
+                .createQueryBuilder('e')
+                .where('LOWER(e.judul_kegiatan) = LOWER(:title)', { title })
+                .andWhere('DATE(e.waktu_mulai) = DATE(:start)', { start: startDate })
+                .andWhere('e.id != :eventId', { eventId })
+                .getOne();
+
+            if (existing) {
+                logger.warn('Duplicate event title at same date detected', { title, start: startDate });
+                return res.status(409).json({ message: 'Event dengan judul yang sama pada tanggal tersebut sudah ada' });
+            }
+        }
+
+        let eventSlug = providedSlug ? slugify(providedSlug, { lower: true, strict: true }) :
+            (judul_kegiatan ? slugify(judul_kegiatan, { lower: true, strict: true }) : existingEvent.slug);
+
+        // Make sure slug is unique (append counter if necessary)
+        let counter = 0;
+        let exists = await eventRepo().findOne({ where: { slug: eventSlug } });
+        while (exists && exists.id !== eventId) {
+            counter += 1;
+            eventSlug = `${eventSlug}-${counter}`;
+            exists = await eventRepo().findOne({ where: { slug: eventSlug } });
+        }
+
+        const uploadBase = path.join(__dirname, '..', '..', 'uploads');
+        const flyerFile = req.files?.flyer_kegiatan?.[0] || null;
+        const sertifikatFile = req.files?.sertifikat_kegiatan?.[0] || null;
+
+        let flyer = existingEvent.flyer_kegiatan;
+        let sertifikat = existingEvent.sertifikat_kegiatan;
+
+        try {
+            if (flyerFile) {
+                // Delete old flyer if exists
+                if (existingEvent.flyer_kegiatan) {
+                    const oldFlyerPath = path.join(uploadBase, 'flyer', existingEvent.flyer_kegiatan);
+                    cleanupFiles([oldFlyerPath]);
+                }
+                const res = await renameUploadedFileToSlug(flyerFile, path.join(uploadBase, 'flyer'), `${eventSlug}-flyer`);
+                flyer = res.filename;
+            }
+            if (sertifikatFile) {
+                // Delete old certificate if exists
+                if (existingEvent.sertifikat_kegiatan) {
+                    const oldCertPath = path.join(uploadBase, 'certificates', existingEvent.sertifikat_kegiatan);
+                    cleanupFiles([oldCertPath]);
+                }
+                const res = await renameUploadedFileToSlug(sertifikatFile, path.join(uploadBase, 'certificates'), `${eventSlug}-certificate`);
+                sertifikat = res.filename;
+            }
+        } catch (err) {
+            const filePathsToCleanup = [
+                flyerFile?.path,
+                sertifikatFile?.path
+            ].filter(Boolean);
+            cleanupFiles(filePathsToCleanup);
+            logger.error('File rename to slug failed', { error: err.message, stack: err.stack });
+            return res.status(500).json({ message: 'Failed to process uploaded files' });
+        }
+
+        const updateData = {
+            ...(judul_kegiatan && { judul_kegiatan }),
+            ...(eventSlug && { slug: eventSlug }),
+            ...(deskripsi_kegiatan && { deskripsi_kegiatan }),
+            ...(lokasi_kegiatan && { lokasi_kegiatan }),
+            ...(flyer !== undefined && { flyer_kegiatan: flyer }),
+            ...(sertifikat !== undefined && { sertifikat_kegiatan: sertifikat }),
+            ...(kapasitas_peserta !== undefined && { kapasitas_peserta: parseInt(kapasitas_peserta, 10) }),
+            ...(harga !== undefined && { harga: parseFloat(harga) }),
+            ...(waktu_mulai && { waktu_mulai: new Date(waktu_mulai) }),
+            ...(waktu_berakhir && { waktu_berakhir: new Date(waktu_berakhir) }),
+            ...(category && { category: { id: category.id } })
+        };
+
+        const updated = await AppDataSource.manager.transaction(async (manager) => {
+            const repo = manager.getRepository('Event');
+            await repo.update(eventId, updateData);
+            return await repo.findOne({ 
+                where: { id: eventId },
+                relations: ['category']
+            });
+        });
+
+        logger.info('Event updated', { id: updated.id, slug: updated.slug });
+        return res.status(200).json({
+            message: 'Event updated',
+            data: {
+                id: updated.id,
+                judul_kegiatan: updated.judul_kegiatan,
+                slug: updated.slug,
+                waktu_mulai: updated.waktu_mulai,
+                waktu_berakhir: updated.waktu_berakhir
+            }
+        });
+    } catch (error) {
+        const toCleanup = [];
+        toCleanup.push(req.files?.flyer_kegiatan?.[0]?.path);
+        toCleanup.push(req.files?.sertifikat_kegiatan?.[0]?.path);
+        cleanupFiles(toCleanup.filter(Boolean));
+
+        logger.error('updateEvent unexpected error', {
+            code: error.code,
+            errno: error.errno,
+            message: error,
+            stack: error.stack
+        });
+
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+exports.deleteEvent = async (req, res) => {
+    try {
+        const eventId = parseInt(req.params.id, 10);
+        if (isNaN(eventId)) {
+            return res.status(400).json({ message: 'Invalid event ID' });
+        }
+
+        logger.info('DELETE /event/:id delete request', { eventId, ip: req.ip });
+
+        const event = await eventRepo().findOne({ where: { id: eventId } });
+        if (!event) {
+            return res.status(404).json({ message: 'Event tidak ditemukan' });
+        }
+
+        // Check if event has any attendance records
+        const attendanceCount = await attendanceRepo().count({ where: { event: { id: eventId } } });
+        if (attendanceCount > 0) {
+            return res.status(409).json({ 
+                message: `Event tidak dapat dihapus karena sudah memiliki ${attendanceCount} peserta terdaftar` 
+            });
+        }
+
+        // Delete associated files
+        const uploadBase = path.join(__dirname, '..', '..', 'uploads');
+        const filesToDelete = [];
+        
+        if (event.flyer_kegiatan) {
+            filesToDelete.push(path.join(uploadBase, 'flyer', event.flyer_kegiatan));
+        }
+        if (event.sertifikat_kegiatan) {
+            filesToDelete.push(path.join(uploadBase, 'certificates', event.sertifikat_kegiatan));
+        }
+        
+        cleanupFiles(filesToDelete);
+
+        // Delete event
+        await eventRepo().delete(eventId);
+
+        logger.info('Event deleted', { id: eventId, slug: event.slug });
+        return res.status(200).json({
+            message: 'Event berhasil dihapus',
+            data: {
+                id: eventId
+            }
+        });
+    } catch (error) {
+        logger.error('deleteEvent unexpected error', {
+            code: error.code,
+            errno: error.errno,
+            message: error,
+            stack: error.stack
+        });
+
         return res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -421,6 +1165,227 @@ exports.createEvent = async (req, res) => {
     }
 };
 
+exports.updateEvent = async (req, res) => {
+    try {
+        const eventId = parseInt(req.params.id, 10);
+        if (isNaN(eventId)) {
+            return res.status(400).json({ message: 'Invalid event ID' });
+        }
+
+        const meta = {
+            ip: req.ip,
+            userAgent: req.get('User-Agent'),
+            eventId,
+            files: Object.keys(req.files || {})
+        };
+        logger.info('PUT /event/:id update request', meta);
+
+        const existingEvent = await eventRepo().findOne({ where: { id: eventId } });
+        if (!existingEvent) {
+            return res.status(404).json({ message: 'Event tidak ditemukan' });
+        }
+
+        const {
+            judul_kegiatan,
+            slug: providedSlug,
+            deskripsi_kegiatan,
+            lokasi_kegiatan,
+            kapasitas_peserta,
+            harga,
+            waktu_mulai,
+            waktu_berakhir,
+            kategori_id,
+            kategori_slug
+        } = req.body;
+
+        let category = null;
+        if (kategori_id) {
+            category = await categoryRepo().findOne({ where: { id: parseInt(kategori_id, 10) } });
+            if (!category) {
+                logger.warn('Kategori tidak ditemukan saat update event', { kategori_id });
+                return res.status(400).json({ message: 'Kategori tidak ditemukan' });
+            }
+        } else if (kategori_slug) {
+            category = await categoryRepo().findOne({ where: { slug: kategori_slug } });
+            if (!category) {
+                logger.warn('Kategori slug tidak ditemukan saat update event', { kategori_slug });
+                return res.status(400).json({ message: 'Kategori tidak ditemukan' });
+            }
+        }
+
+        // Check for duplicate title at same date (excluding current event)
+        if (judul_kegiatan && waktu_mulai) {
+            const title = judul_kegiatan.trim();
+            const startDate = new Date(waktu_mulai);
+            const existing = await eventRepo()
+                .createQueryBuilder('e')
+                .where('LOWER(e.judul_kegiatan) = LOWER(:title)', { title })
+                .andWhere('DATE(e.waktu_mulai) = DATE(:start)', { start: startDate })
+                .andWhere('e.id != :eventId', { eventId })
+                .getOne();
+
+            if (existing) {
+                logger.warn('Duplicate event title at same date detected', { title, start: startDate });
+                return res.status(409).json({ message: 'Event dengan judul yang sama pada tanggal tersebut sudah ada' });
+            }
+        }
+
+        let eventSlug = providedSlug ? slugify(providedSlug, { lower: true, strict: true }) :
+            (judul_kegiatan ? slugify(judul_kegiatan, { lower: true, strict: true }) : existingEvent.slug);
+
+        // Make sure slug is unique (append counter if necessary)
+        let counter = 0;
+        let exists = await eventRepo().findOne({ where: { slug: eventSlug } });
+        while (exists && exists.id !== eventId) {
+            counter += 1;
+            eventSlug = `${eventSlug}-${counter}`;
+            exists = await eventRepo().findOne({ where: { slug: eventSlug } });
+        }
+
+        const uploadBase = path.join(__dirname, '..', '..', 'uploads');
+        const flyerFile = req.files?.flyer_kegiatan?.[0] || null;
+        const sertifikatFile = req.files?.sertifikat_kegiatan?.[0] || null;
+
+        let flyer = existingEvent.flyer_kegiatan;
+        let sertifikat = existingEvent.sertifikat_kegiatan;
+
+        try {
+            if (flyerFile) {
+                // Delete old flyer if exists
+                if (existingEvent.flyer_kegiatan) {
+                    const oldFlyerPath = path.join(uploadBase, 'flyer', existingEvent.flyer_kegiatan);
+                    cleanupFiles([oldFlyerPath]);
+                }
+                const res = await renameUploadedFileToSlug(flyerFile, path.join(uploadBase, 'flyer'), `${eventSlug}-flyer`);
+                flyer = res.filename;
+            }
+            if (sertifikatFile) {
+                // Delete old certificate if exists
+                if (existingEvent.sertifikat_kegiatan) {
+                    const oldCertPath = path.join(uploadBase, 'certificates', existingEvent.sertifikat_kegiatan);
+                    cleanupFiles([oldCertPath]);
+                }
+                const res = await renameUploadedFileToSlug(sertifikatFile, path.join(uploadBase, 'certificates'), `${eventSlug}-certificate`);
+                sertifikat = res.filename;
+            }
+        } catch (err) {
+            const filePathsToCleanup = [
+                flyerFile?.path,
+                sertifikatFile?.path
+            ].filter(Boolean);
+            cleanupFiles(filePathsToCleanup);
+            logger.error('File rename to slug failed', { error: err.message, stack: err.stack });
+            return res.status(500).json({ message: 'Failed to process uploaded files' });
+        }
+
+        const updateData = {
+            ...(judul_kegiatan && { judul_kegiatan }),
+            ...(eventSlug && { slug: eventSlug }),
+            ...(deskripsi_kegiatan && { deskripsi_kegiatan }),
+            ...(lokasi_kegiatan && { lokasi_kegiatan }),
+            ...(flyer !== undefined && { flyer_kegiatan: flyer }),
+            ...(sertifikat !== undefined && { sertifikat_kegiatan: sertifikat }),
+            ...(kapasitas_peserta !== undefined && { kapasitas_peserta: parseInt(kapasitas_peserta, 10) }),
+            ...(harga !== undefined && { harga: parseFloat(harga) }),
+            ...(waktu_mulai && { waktu_mulai: new Date(waktu_mulai) }),
+            ...(waktu_berakhir && { waktu_berakhir: new Date(waktu_berakhir) }),
+            ...(category && { category: { id: category.id } })
+        };
+
+        const updated = await AppDataSource.manager.transaction(async (manager) => {
+            const repo = manager.getRepository('Event');
+            await repo.update(eventId, updateData);
+            return await repo.findOne({ 
+                where: { id: eventId },
+                relations: ['category']
+            });
+        });
+
+        logger.info('Event updated', { id: updated.id, slug: updated.slug });
+        return res.status(200).json({
+            message: 'Event updated',
+            data: {
+                id: updated.id,
+                judul_kegiatan: updated.judul_kegiatan,
+                slug: updated.slug,
+                waktu_mulai: updated.waktu_mulai,
+                waktu_berakhir: updated.waktu_berakhir
+            }
+        });
+    } catch (error) {
+        const toCleanup = [];
+        toCleanup.push(req.files?.flyer_kegiatan?.[0]?.path);
+        toCleanup.push(req.files?.sertifikat_kegiatan?.[0]?.path);
+        cleanupFiles(toCleanup.filter(Boolean));
+
+        logger.error('updateEvent unexpected error', {
+            code: error.code,
+            errno: error.errno,
+            message: error,
+            stack: error.stack
+        });
+
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+exports.deleteEvent = async (req, res) => {
+    try {
+        const eventId = parseInt(req.params.id, 10);
+        if (isNaN(eventId)) {
+            return res.status(400).json({ message: 'Invalid event ID' });
+        }
+
+        logger.info('DELETE /event/:id delete request', { eventId, ip: req.ip });
+
+        const event = await eventRepo().findOne({ where: { id: eventId } });
+        if (!event) {
+            return res.status(404).json({ message: 'Event tidak ditemukan' });
+        }
+
+        // Check if event has any attendance records
+        const attendanceCount = await attendanceRepo().count({ where: { event: { id: eventId } } });
+        if (attendanceCount > 0) {
+            return res.status(409).json({ 
+                message: `Event tidak dapat dihapus karena sudah memiliki ${attendanceCount} peserta terdaftar` 
+            });
+        }
+
+        // Delete associated files
+        const uploadBase = path.join(__dirname, '..', '..', 'uploads');
+        const filesToDelete = [];
+        
+        if (event.flyer_kegiatan) {
+            filesToDelete.push(path.join(uploadBase, 'flyer', event.flyer_kegiatan));
+        }
+        if (event.sertifikat_kegiatan) {
+            filesToDelete.push(path.join(uploadBase, 'certificates', event.sertifikat_kegiatan));
+        }
+        
+        cleanupFiles(filesToDelete);
+
+        // Delete event
+        await eventRepo().delete(eventId);
+
+        logger.info('Event deleted', { id: eventId, slug: event.slug });
+        return res.status(200).json({
+            message: 'Event berhasil dihapus',
+            data: {
+                id: eventId
+            }
+        });
+    } catch (error) {
+        logger.error('deleteEvent unexpected error', {
+            code: error.code,
+            errno: error.errno,
+            message: error,
+            stack: error.stack
+        });
+
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 exports.registerEvent = async (req, res) => {
     try {
         const userId = req.user?.id;
@@ -433,9 +1398,17 @@ exports.registerEvent = async (req, res) => {
             return res.status(404).json({ message: 'Event not found' });
         }
 
-        if (Number(ev.harga) > 0) {
-            return res.status(403).json({ message: 'Pendaftaran untuk event berbayar belum diimplementasikan' });
+        // Check if event has started - registration should be closed
+        const eventStartTime = new Date(ev.waktu_mulai);
+        const currentTime = new Date();
+        if (currentTime >= eventStartTime) {
+            logger.warn(`Registration attempted after event start: eventId=${eventId}, userId=${userId}`);
+            return res.status(403).json({ 
+                message: 'Pendaftaran sudah ditutup. Event sudah dimulai.' 
+            });
         }
+
+        const isPaidEvent = Number(ev.harga) > 0;
 
         const currentCount = await attendanceRepo().createQueryBuilder('d')
             .where('d.event = :id', { id: eventId })
@@ -445,6 +1418,57 @@ exports.registerEvent = async (req, res) => {
             return res.status(409).json({ message: 'Kapasitas event sudah penuh' });
         }
 
+        // For paid events, check if there's already a payment (pending or paid)
+        if (isPaidEvent) {
+            // Check if user already has attendance with payment
+            const existingAttendance = await attendanceRepo()
+                .createQueryBuilder('d')
+                .leftJoinAndSelect('d.payment', 'payment')
+                .where('d.event = :eventId', { eventId })
+                .andWhere('d.user = :userId', { userId })
+                .getOne();
+
+            if (existingAttendance) {
+                // If attendance exists, check payment status
+                if (existingAttendance.payment) {
+                    if (existingAttendance.payment.status === 'paid') {
+                        return res.status(409).json({ 
+                            message: 'Anda sudah terdaftar dan sudah membayar untuk event ini' 
+                        });
+                    }
+                    if (existingAttendance.payment.status === 'pending') {
+                        // Return existing payment info
+                        return res.status(200).json({ 
+                            message: 'Pembayaran sudah dibuat, silakan selesaikan pembayaran.',
+                            data: {
+                                eventId: eventId,
+                                attendanceId: existingAttendance.id,
+                                requiresPayment: true,
+                                amount: ev.harga
+                            }
+                        });
+                    }
+                }
+                // If attendance exists but no payment, something went wrong - return error
+                return res.status(409).json({ 
+                    message: 'Anda sudah terdaftar untuk event ini. Silakan hubungi administrator.' 
+                });
+            }
+
+            // For paid events, don't create attendance yet - just return event info for payment
+            // Attendance will be created in paymentController.createPayment
+            logger.info(`User ${userId} initiating payment for paid event ${eventId}`);
+            return res.status(200).json({ 
+                message: 'Silakan lakukan pembayaran untuk melanjutkan pendaftaran.',
+                data: {
+                    eventId: eventId,
+                    requiresPayment: true,
+                    amount: ev.harga
+                }
+            });
+        }
+
+        // For free events, check if already registered
         const existing = await attendanceRepo().createQueryBuilder('d')
             .where('d.event = :eventId', { eventId })
             .andWhere('d.user = :userId', { userId })
@@ -472,14 +1496,14 @@ exports.registerEvent = async (req, res) => {
             return res.status(400).json({ message: 'Email pengguna tidak ditemukan' });
         }
 
-        // Save attendance first
+        // Save attendance for free events
         const saved = await AppDataSource.manager.transaction(async (manager) => {
             const repo = manager.getRepository('Attendance');
             const created = repo.create(attendanceData);
             return await repo.save(created);
         });
 
-        // Send email with token
+        // For free events, send email with token immediately
         try {
             const expiresMinutes = parseInt(process.env.OTP_EXPIRES_MINUTES || '15', 10);
             logger.info(`Sending event token email to ${userEmail} for event ${ev.judul_kegiatan}`);
@@ -515,6 +1539,227 @@ exports.registerEvent = async (req, res) => {
         return res.status(201).json({ message: 'Berhasil mendaftar. Kode token dikirim ke email Anda.' });
     } catch (error) {
         logger.error(`registerEvent error: ${error}`, { stack: error.stack });
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+exports.updateEvent = async (req, res) => {
+    try {
+        const eventId = parseInt(req.params.id, 10);
+        if (isNaN(eventId)) {
+            return res.status(400).json({ message: 'Invalid event ID' });
+        }
+
+        const meta = {
+            ip: req.ip,
+            userAgent: req.get('User-Agent'),
+            eventId,
+            files: Object.keys(req.files || {})
+        };
+        logger.info('PUT /event/:id update request', meta);
+
+        const existingEvent = await eventRepo().findOne({ where: { id: eventId } });
+        if (!existingEvent) {
+            return res.status(404).json({ message: 'Event tidak ditemukan' });
+        }
+
+        const {
+            judul_kegiatan,
+            slug: providedSlug,
+            deskripsi_kegiatan,
+            lokasi_kegiatan,
+            kapasitas_peserta,
+            harga,
+            waktu_mulai,
+            waktu_berakhir,
+            kategori_id,
+            kategori_slug
+        } = req.body;
+
+        let category = null;
+        if (kategori_id) {
+            category = await categoryRepo().findOne({ where: { id: parseInt(kategori_id, 10) } });
+            if (!category) {
+                logger.warn('Kategori tidak ditemukan saat update event', { kategori_id });
+                return res.status(400).json({ message: 'Kategori tidak ditemukan' });
+            }
+        } else if (kategori_slug) {
+            category = await categoryRepo().findOne({ where: { slug: kategori_slug } });
+            if (!category) {
+                logger.warn('Kategori slug tidak ditemukan saat update event', { kategori_slug });
+                return res.status(400).json({ message: 'Kategori tidak ditemukan' });
+            }
+        }
+
+        // Check for duplicate title at same date (excluding current event)
+        if (judul_kegiatan && waktu_mulai) {
+            const title = judul_kegiatan.trim();
+            const startDate = new Date(waktu_mulai);
+            const existing = await eventRepo()
+                .createQueryBuilder('e')
+                .where('LOWER(e.judul_kegiatan) = LOWER(:title)', { title })
+                .andWhere('DATE(e.waktu_mulai) = DATE(:start)', { start: startDate })
+                .andWhere('e.id != :eventId', { eventId })
+                .getOne();
+
+            if (existing) {
+                logger.warn('Duplicate event title at same date detected', { title, start: startDate });
+                return res.status(409).json({ message: 'Event dengan judul yang sama pada tanggal tersebut sudah ada' });
+            }
+        }
+
+        let eventSlug = providedSlug ? slugify(providedSlug, { lower: true, strict: true }) :
+            (judul_kegiatan ? slugify(judul_kegiatan, { lower: true, strict: true }) : existingEvent.slug);
+
+        // Make sure slug is unique (append counter if necessary)
+        let counter = 0;
+        let exists = await eventRepo().findOne({ where: { slug: eventSlug } });
+        while (exists && exists.id !== eventId) {
+            counter += 1;
+            eventSlug = `${eventSlug}-${counter}`;
+            exists = await eventRepo().findOne({ where: { slug: eventSlug } });
+        }
+
+        const uploadBase = path.join(__dirname, '..', '..', 'uploads');
+        const flyerFile = req.files?.flyer_kegiatan?.[0] || null;
+        const sertifikatFile = req.files?.sertifikat_kegiatan?.[0] || null;
+
+        let flyer = existingEvent.flyer_kegiatan;
+        let sertifikat = existingEvent.sertifikat_kegiatan;
+
+        try {
+            if (flyerFile) {
+                // Delete old flyer if exists
+                if (existingEvent.flyer_kegiatan) {
+                    const oldFlyerPath = path.join(uploadBase, 'flyer', existingEvent.flyer_kegiatan);
+                    cleanupFiles([oldFlyerPath]);
+                }
+                const res = await renameUploadedFileToSlug(flyerFile, path.join(uploadBase, 'flyer'), `${eventSlug}-flyer`);
+                flyer = res.filename;
+            }
+            if (sertifikatFile) {
+                // Delete old certificate if exists
+                if (existingEvent.sertifikat_kegiatan) {
+                    const oldCertPath = path.join(uploadBase, 'certificates', existingEvent.sertifikat_kegiatan);
+                    cleanupFiles([oldCertPath]);
+                }
+                const res = await renameUploadedFileToSlug(sertifikatFile, path.join(uploadBase, 'certificates'), `${eventSlug}-certificate`);
+                sertifikat = res.filename;
+            }
+        } catch (err) {
+            const filePathsToCleanup = [
+                flyerFile?.path,
+                sertifikatFile?.path
+            ].filter(Boolean);
+            cleanupFiles(filePathsToCleanup);
+            logger.error('File rename to slug failed', { error: err.message, stack: err.stack });
+            return res.status(500).json({ message: 'Failed to process uploaded files' });
+        }
+
+        const updateData = {
+            ...(judul_kegiatan && { judul_kegiatan }),
+            ...(eventSlug && { slug: eventSlug }),
+            ...(deskripsi_kegiatan && { deskripsi_kegiatan }),
+            ...(lokasi_kegiatan && { lokasi_kegiatan }),
+            ...(flyer !== undefined && { flyer_kegiatan: flyer }),
+            ...(sertifikat !== undefined && { sertifikat_kegiatan: sertifikat }),
+            ...(kapasitas_peserta !== undefined && { kapasitas_peserta: parseInt(kapasitas_peserta, 10) }),
+            ...(harga !== undefined && { harga: parseFloat(harga) }),
+            ...(waktu_mulai && { waktu_mulai: new Date(waktu_mulai) }),
+            ...(waktu_berakhir && { waktu_berakhir: new Date(waktu_berakhir) }),
+            ...(category && { category: { id: category.id } })
+        };
+
+        const updated = await AppDataSource.manager.transaction(async (manager) => {
+            const repo = manager.getRepository('Event');
+            await repo.update(eventId, updateData);
+            return await repo.findOne({ 
+                where: { id: eventId },
+                relations: ['category']
+            });
+        });
+
+        logger.info('Event updated', { id: updated.id, slug: updated.slug });
+        return res.status(200).json({
+            message: 'Event updated',
+            data: {
+                id: updated.id,
+                judul_kegiatan: updated.judul_kegiatan,
+                slug: updated.slug,
+                waktu_mulai: updated.waktu_mulai,
+                waktu_berakhir: updated.waktu_berakhir
+            }
+        });
+    } catch (error) {
+        const toCleanup = [];
+        toCleanup.push(req.files?.flyer_kegiatan?.[0]?.path);
+        toCleanup.push(req.files?.sertifikat_kegiatan?.[0]?.path);
+        cleanupFiles(toCleanup.filter(Boolean));
+
+        logger.error('updateEvent unexpected error', {
+            code: error.code,
+            errno: error.errno,
+            message: error,
+            stack: error.stack
+        });
+
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+exports.deleteEvent = async (req, res) => {
+    try {
+        const eventId = parseInt(req.params.id, 10);
+        if (isNaN(eventId)) {
+            return res.status(400).json({ message: 'Invalid event ID' });
+        }
+
+        logger.info('DELETE /event/:id delete request', { eventId, ip: req.ip });
+
+        const event = await eventRepo().findOne({ where: { id: eventId } });
+        if (!event) {
+            return res.status(404).json({ message: 'Event tidak ditemukan' });
+        }
+
+        // Check if event has any attendance records
+        const attendanceCount = await attendanceRepo().count({ where: { event: { id: eventId } } });
+        if (attendanceCount > 0) {
+            return res.status(409).json({ 
+                message: `Event tidak dapat dihapus karena sudah memiliki ${attendanceCount} peserta terdaftar` 
+            });
+        }
+
+        // Delete associated files
+        const uploadBase = path.join(__dirname, '..', '..', 'uploads');
+        const filesToDelete = [];
+        
+        if (event.flyer_kegiatan) {
+            filesToDelete.push(path.join(uploadBase, 'flyer', event.flyer_kegiatan));
+        }
+        if (event.sertifikat_kegiatan) {
+            filesToDelete.push(path.join(uploadBase, 'certificates', event.sertifikat_kegiatan));
+        }
+        
+        cleanupFiles(filesToDelete);
+
+        // Delete event
+        await eventRepo().delete(eventId);
+
+        logger.info('Event deleted', { id: eventId, slug: event.slug });
+        return res.status(200).json({
+            message: 'Event berhasil dihapus',
+            data: {
+                id: eventId
+            }
+        });
+    } catch (error) {
+        logger.error('deleteEvent unexpected error', {
+            code: error.code,
+            errno: error.errno,
+            message: error,
+            stack: error.stack
+        });
+
         return res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -591,6 +1836,227 @@ exports.checkInEvent = async (req, res) => {
         return res.json({ message: 'Absensi berhasil. Terima kasih.' });
     } catch (error) {
         logger.error(`checkInEvent error: ${error}`, { stack: error.stack });
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+exports.updateEvent = async (req, res) => {
+    try {
+        const eventId = parseInt(req.params.id, 10);
+        if (isNaN(eventId)) {
+            return res.status(400).json({ message: 'Invalid event ID' });
+        }
+
+        const meta = {
+            ip: req.ip,
+            userAgent: req.get('User-Agent'),
+            eventId,
+            files: Object.keys(req.files || {})
+        };
+        logger.info('PUT /event/:id update request', meta);
+
+        const existingEvent = await eventRepo().findOne({ where: { id: eventId } });
+        if (!existingEvent) {
+            return res.status(404).json({ message: 'Event tidak ditemukan' });
+        }
+
+        const {
+            judul_kegiatan,
+            slug: providedSlug,
+            deskripsi_kegiatan,
+            lokasi_kegiatan,
+            kapasitas_peserta,
+            harga,
+            waktu_mulai,
+            waktu_berakhir,
+            kategori_id,
+            kategori_slug
+        } = req.body;
+
+        let category = null;
+        if (kategori_id) {
+            category = await categoryRepo().findOne({ where: { id: parseInt(kategori_id, 10) } });
+            if (!category) {
+                logger.warn('Kategori tidak ditemukan saat update event', { kategori_id });
+                return res.status(400).json({ message: 'Kategori tidak ditemukan' });
+            }
+        } else if (kategori_slug) {
+            category = await categoryRepo().findOne({ where: { slug: kategori_slug } });
+            if (!category) {
+                logger.warn('Kategori slug tidak ditemukan saat update event', { kategori_slug });
+                return res.status(400).json({ message: 'Kategori tidak ditemukan' });
+            }
+        }
+
+        // Check for duplicate title at same date (excluding current event)
+        if (judul_kegiatan && waktu_mulai) {
+            const title = judul_kegiatan.trim();
+            const startDate = new Date(waktu_mulai);
+            const existing = await eventRepo()
+                .createQueryBuilder('e')
+                .where('LOWER(e.judul_kegiatan) = LOWER(:title)', { title })
+                .andWhere('DATE(e.waktu_mulai) = DATE(:start)', { start: startDate })
+                .andWhere('e.id != :eventId', { eventId })
+                .getOne();
+
+            if (existing) {
+                logger.warn('Duplicate event title at same date detected', { title, start: startDate });
+                return res.status(409).json({ message: 'Event dengan judul yang sama pada tanggal tersebut sudah ada' });
+            }
+        }
+
+        let eventSlug = providedSlug ? slugify(providedSlug, { lower: true, strict: true }) :
+            (judul_kegiatan ? slugify(judul_kegiatan, { lower: true, strict: true }) : existingEvent.slug);
+
+        // Make sure slug is unique (append counter if necessary)
+        let counter = 0;
+        let exists = await eventRepo().findOne({ where: { slug: eventSlug } });
+        while (exists && exists.id !== eventId) {
+            counter += 1;
+            eventSlug = `${eventSlug}-${counter}`;
+            exists = await eventRepo().findOne({ where: { slug: eventSlug } });
+        }
+
+        const uploadBase = path.join(__dirname, '..', '..', 'uploads');
+        const flyerFile = req.files?.flyer_kegiatan?.[0] || null;
+        const sertifikatFile = req.files?.sertifikat_kegiatan?.[0] || null;
+
+        let flyer = existingEvent.flyer_kegiatan;
+        let sertifikat = existingEvent.sertifikat_kegiatan;
+
+        try {
+            if (flyerFile) {
+                // Delete old flyer if exists
+                if (existingEvent.flyer_kegiatan) {
+                    const oldFlyerPath = path.join(uploadBase, 'flyer', existingEvent.flyer_kegiatan);
+                    cleanupFiles([oldFlyerPath]);
+                }
+                const res = await renameUploadedFileToSlug(flyerFile, path.join(uploadBase, 'flyer'), `${eventSlug}-flyer`);
+                flyer = res.filename;
+            }
+            if (sertifikatFile) {
+                // Delete old certificate if exists
+                if (existingEvent.sertifikat_kegiatan) {
+                    const oldCertPath = path.join(uploadBase, 'certificates', existingEvent.sertifikat_kegiatan);
+                    cleanupFiles([oldCertPath]);
+                }
+                const res = await renameUploadedFileToSlug(sertifikatFile, path.join(uploadBase, 'certificates'), `${eventSlug}-certificate`);
+                sertifikat = res.filename;
+            }
+        } catch (err) {
+            const filePathsToCleanup = [
+                flyerFile?.path,
+                sertifikatFile?.path
+            ].filter(Boolean);
+            cleanupFiles(filePathsToCleanup);
+            logger.error('File rename to slug failed', { error: err.message, stack: err.stack });
+            return res.status(500).json({ message: 'Failed to process uploaded files' });
+        }
+
+        const updateData = {
+            ...(judul_kegiatan && { judul_kegiatan }),
+            ...(eventSlug && { slug: eventSlug }),
+            ...(deskripsi_kegiatan && { deskripsi_kegiatan }),
+            ...(lokasi_kegiatan && { lokasi_kegiatan }),
+            ...(flyer !== undefined && { flyer_kegiatan: flyer }),
+            ...(sertifikat !== undefined && { sertifikat_kegiatan: sertifikat }),
+            ...(kapasitas_peserta !== undefined && { kapasitas_peserta: parseInt(kapasitas_peserta, 10) }),
+            ...(harga !== undefined && { harga: parseFloat(harga) }),
+            ...(waktu_mulai && { waktu_mulai: new Date(waktu_mulai) }),
+            ...(waktu_berakhir && { waktu_berakhir: new Date(waktu_berakhir) }),
+            ...(category && { category: { id: category.id } })
+        };
+
+        const updated = await AppDataSource.manager.transaction(async (manager) => {
+            const repo = manager.getRepository('Event');
+            await repo.update(eventId, updateData);
+            return await repo.findOne({ 
+                where: { id: eventId },
+                relations: ['category']
+            });
+        });
+
+        logger.info('Event updated', { id: updated.id, slug: updated.slug });
+        return res.status(200).json({
+            message: 'Event updated',
+            data: {
+                id: updated.id,
+                judul_kegiatan: updated.judul_kegiatan,
+                slug: updated.slug,
+                waktu_mulai: updated.waktu_mulai,
+                waktu_berakhir: updated.waktu_berakhir
+            }
+        });
+    } catch (error) {
+        const toCleanup = [];
+        toCleanup.push(req.files?.flyer_kegiatan?.[0]?.path);
+        toCleanup.push(req.files?.sertifikat_kegiatan?.[0]?.path);
+        cleanupFiles(toCleanup.filter(Boolean));
+
+        logger.error('updateEvent unexpected error', {
+            code: error.code,
+            errno: error.errno,
+            message: error,
+            stack: error.stack
+        });
+
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+exports.deleteEvent = async (req, res) => {
+    try {
+        const eventId = parseInt(req.params.id, 10);
+        if (isNaN(eventId)) {
+            return res.status(400).json({ message: 'Invalid event ID' });
+        }
+
+        logger.info('DELETE /event/:id delete request', { eventId, ip: req.ip });
+
+        const event = await eventRepo().findOne({ where: { id: eventId } });
+        if (!event) {
+            return res.status(404).json({ message: 'Event tidak ditemukan' });
+        }
+
+        // Check if event has any attendance records
+        const attendanceCount = await attendanceRepo().count({ where: { event: { id: eventId } } });
+        if (attendanceCount > 0) {
+            return res.status(409).json({ 
+                message: `Event tidak dapat dihapus karena sudah memiliki ${attendanceCount} peserta terdaftar` 
+            });
+        }
+
+        // Delete associated files
+        const uploadBase = path.join(__dirname, '..', '..', 'uploads');
+        const filesToDelete = [];
+        
+        if (event.flyer_kegiatan) {
+            filesToDelete.push(path.join(uploadBase, 'flyer', event.flyer_kegiatan));
+        }
+        if (event.sertifikat_kegiatan) {
+            filesToDelete.push(path.join(uploadBase, 'certificates', event.sertifikat_kegiatan));
+        }
+        
+        cleanupFiles(filesToDelete);
+
+        // Delete event
+        await eventRepo().delete(eventId);
+
+        logger.info('Event deleted', { id: eventId, slug: event.slug });
+        return res.status(200).json({
+            message: 'Event berhasil dihapus',
+            data: {
+                id: eventId
+            }
+        });
+    } catch (error) {
+        logger.error('deleteEvent unexpected error', {
+            code: error.code,
+            errno: error.errno,
+            message: error,
+            stack: error.stack
+        });
+
         return res.status(500).json({ message: 'Internal server error' });
     }
 };

@@ -107,6 +107,22 @@ export default function EventsPage() {
                         src={selectedEvent.flyer}
                         alt={`Flyer ${selectedEvent.title}`}
                         className="w-full h-full object-cover"
+                        crossOrigin="anonymous"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const container = target.parentElement;
+                          if (container) {
+                            container.innerHTML = `
+                              <div class="flex items-center justify-center h-full text-gray-400">
+                                <div class="text-center">
+                                  <FileText class="h-8 w-8 mx-auto mb-2" />
+                                  <p class="text-sm">Gagal memuat flyer</p>
+                                </div>
+                              </div>
+                            `;
+                          }
+                        }}
                       />
                     </div>
                   </div>
@@ -194,6 +210,7 @@ export default function EventsPage() {
                         alt={`Sertifikat ${selectedEvent.title}`}
                         className="w-full h-auto object-contain max-h-96"
                         style={{ aspectRatio: 'auto' }}
+                        crossOrigin="anonymous"
                         onLoad={(e) => {
                           const img = e.target as HTMLImageElement;
                           const container = img.parentElement;

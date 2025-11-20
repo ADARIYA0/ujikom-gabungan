@@ -74,16 +74,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setUser(userData);
             setIsAuthenticated(true);
 
-            // Set cookie for middleware
-            document.cookie = 'isAuthenticated=true; path=/; max-age=86400';
+            // Set cookie for middleware (persistent - 30 days like Remember Me)
+            document.cookie = 'isAuthenticated=true; path=/; max-age=2592000';
 
             // Login successful
 
             // Redirect to dashboard
             router.push('/');
         } catch (error) {
-            console.error('AuthContext: Login failed:', error);
-
             // Clear any existing state
             setUser(null);
             setIsAuthenticated(false);
@@ -110,12 +108,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     await AuthApiService.logout(accessToken);
                     // Logout API successful
                 } catch (logoutError) {
-                    console.error('AuthContext: Logout API failed:', logoutError);
                     // Continue with local logout even if API fails
                 }
             }
         } catch (error) {
-            console.error('AuthContext: Logout error:', error);
+            // Silent fail - logout will continue
         } finally {
             // Clearing local storage and cookies
 
@@ -167,18 +164,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 setUser(prevUser => ({ ...prevUser, ...userData }));
                 setIsAuthenticated(true);
 
-                // Update cookie
-                document.cookie = 'isAuthenticated=true; path=/; max-age=86400';
+                // Update cookie (persistent - 30 days like Remember Me)
+                document.cookie = 'isAuthenticated=true; path=/; max-age=2592000';
                 // Token refresh completed
             }
         } catch (error) {
-            console.error('AuthContext: Token refresh failed:', error);
-
             // Enhanced error handling - only logout for specific refresh token errors
             if (error instanceof Error) {
                 const errorMessage = error.message.toLowerCase();
 
-                // Only logout for actual refresh token issues
+                // Only logout for actual refresh token issues (not network errors)
                 if (errorMessage.includes('refresh token tidak ditemukan') ||
                     errorMessage.includes('refresh token tidak valid') ||
                     errorMessage.includes('refresh token kadaluarsa') ||
@@ -187,7 +182,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     await logout();
                 } else {
                     // For network errors or server errors, don't logout
-                    // Network error during refresh
+                    // Keep current auth state - user might still be authenticated
+                    // Network error during refresh, but user might still have valid session
+                    const accessToken = localStorage.getItem('accessToken');
+                    if (accessToken && !AuthApiService.isTokenExpired(accessToken)) {
+                        // Token still valid, keep user authenticated
+                        const userData = AuthApiService.decodeToken(accessToken);
+                        if (userData) {
+                            setUser(userData);
+                            setIsAuthenticated(true);
+                        }
+                    }
                 }
             }
 
@@ -199,6 +204,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     /**
      * Check authentication status on app load
+     * With persistent login (Remember Me) support
      */
     const checkAuthStatus = async (): Promise<void> => {
         try {
@@ -206,22 +212,67 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // Checking authentication status
 
             if (accessToken) {
-                // Check if token is expired
-                if (AuthApiService.isTokenExpired(accessToken)) {
-                    // Access token expired, refreshing
-                    // Try to refresh token
+                // Check if token is expired or will expire soon (within 10 minutes)
+                const isExpired = AuthApiService.isTokenExpired(accessToken);
+                let shouldRefresh = isExpired;
+
+                // If token is not expired, check if it will expire soon
+                if (!isExpired) {
+                    try {
+                        const base64Url = accessToken.split('.')[1];
+                        if (base64Url) {
+                            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                            const jsonPayload = decodeURIComponent(
+                                atob(base64)
+                                    .split('')
+                                    .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                                    .join('')
+                            );
+                            const payload = JSON.parse(jsonPayload);
+                            const currentTime = Date.now() / 1000;
+                            const timeUntilExpiry = payload.exp - currentTime;
+                            
+                            // Refresh if token expires in less than 10 minutes
+                            shouldRefresh = timeUntilExpiry < 600;
+                        }
+                    } catch (decodeError) {
+                        // If we can't decode, assume token is valid and don't refresh
+                        shouldRefresh = false;
+                    }
+                }
+
+                if (shouldRefresh) {
+                    // Access token expired or expiring soon, try to refresh
                     try {
                         await refreshToken();
                         return;
                     } catch (error) {
-                        // Token refresh failed during check
-                        // Only logout if it's a refresh token issue, not network error
-                        if (error instanceof Error && (
-                            error.message.includes('Refresh token tidak ditemukan') ||
-                            error.message.includes('Refresh token tidak valid') ||
-                            error.message.includes('Refresh token kadaluarsa')
-                        )) {
-                            await logout();
+                        // Token refresh failed - but don't logout immediately
+                        // Refresh token might still be valid, just network issue
+                        if (error instanceof Error) {
+                            const errorMessage = error.message.toLowerCase();
+                            
+                            // Only logout if refresh token is actually invalid/expired
+                            if (errorMessage.includes('refresh token tidak ditemukan') ||
+                                errorMessage.includes('refresh token tidak valid') ||
+                                errorMessage.includes('refresh token kadaluarsa') ||
+                                errorMessage.includes('refresh token expired')) {
+                                // Refresh token is invalid, must logout
+                                await logout();
+                                return;
+                            }
+                        }
+                        
+                        // For network errors or other issues, keep current state
+                        // User might still be authenticated, just can't refresh right now
+                        // Try to use existing token if it's still valid
+                        if (!isExpired) {
+                            const userData = AuthApiService.decodeToken(accessToken);
+                            if (userData) {
+                                setUser(userData);
+                                setIsAuthenticated(true);
+                                document.cookie = 'isAuthenticated=true; path=/; max-age=2592000';
+                            }
                         }
                         return;
                     }
@@ -233,22 +284,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     setUser(userData);
                     setIsAuthenticated(true);
 
-                    // Set cookie for middleware
-                    document.cookie = 'isAuthenticated=true; path=/; max-age=86400';
+                    // Set cookie for middleware (persistent - 30 days like Remember Me)
+                    document.cookie = 'isAuthenticated=true; path=/; max-age=2592000';
                     // User authenticated with valid token
                 } else {
-                    // Invalid token data, clearing state
-                    await logout();
+                    // Invalid token data, try to refresh before logging out
+                    try {
+                        await refreshToken();
+                    } catch (refreshError) {
+                        // Only logout if refresh also fails
+                        await logout();
+                    }
                 }
             } else {
-                // No access token found
-                setUser(null);
-                setIsAuthenticated(false);
+                // No access token found, but check if refresh token exists (persistent login)
+                // Try to refresh to get new access token
+                try {
+                    await refreshToken();
+                } catch (error) {
+                    // No refresh token or invalid, user needs to login
+                    setUser(null);
+                    setIsAuthenticated(false);
+                }
             }
         } catch (error) {
-            console.error('AuthContext: Error checking auth status:', error);
             // Don't logout on errors - could be network issues
-            // Keeping current auth state due to error
+            // Keep current auth state if we have a token
+            const accessToken = localStorage.getItem('accessToken');
+            if (accessToken && !AuthApiService.isTokenExpired(accessToken)) {
+                const userData = AuthApiService.decodeToken(accessToken);
+                if (userData) {
+                    setUser(userData);
+                    setIsAuthenticated(true);
+                }
+            }
         } finally {
             setIsLoading(false);
         }
@@ -292,18 +361,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                             const currentTime = Date.now() / 1000;
                             const timeUntilExpiry = payload.exp - currentTime;
 
-                            // If token expires in less than 5 minutes, refresh it
-                            if (timeUntilExpiry < 300) {
-                                // Token expiring soon, refreshing
+                            // If token expires in less than 10 minutes, refresh it proactively
+                            if (timeUntilExpiry < 600) {
+                                // Token expiring soon, refreshing proactively
                                 await refreshToken();
                             }
                         }
                     } catch (decodeError) {
-                        console.error('AuthContext: Error checking token expiry:', decodeError);
+                        // Silent fail - token refresh will retry
                     }
                 }
             } catch (error) {
-                console.error('AuthContext: Auto refresh failed:', error);
+                // Silent fail - token refresh will retry
             }
         };
 

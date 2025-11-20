@@ -17,7 +17,7 @@ const URLValidator = ({ children }: URLValidatorProps) => {
         const validateURL = () => {
             const routeConfig: Record<string, string[]> = {
                 '/': [],
-                '/login': [],
+                '/login': ['returnUrl'],
                 '/register': [],
                 '/verify-otp': ['email', 'from'],
                 '/reset-password': ['email', 'step', 'from'],
@@ -25,6 +25,8 @@ const URLValidator = ({ children }: URLValidatorProps) => {
                 '/profile': [],
                 '/attendance': [],
                 '/event': ['from'],
+                '/payment': ['event_id', 'attendance_id', 'payment_id'],
+                '/payment/success': ['payment_id'],
                 '/not-found': []
             };
 

@@ -34,7 +34,7 @@ export function useTokenRefresh() {
                             TokenManager.setAccessToken(refreshResult.data.accessToken, rememberMe);
                         }
                     } catch (error) {
-                        console.error('Background token refresh error:', error);
+                        // Silent fail - token refresh will retry on next check
                     } finally {
                         isRefreshingRef.current = false;
                     }

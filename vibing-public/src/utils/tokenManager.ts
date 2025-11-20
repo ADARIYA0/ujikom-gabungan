@@ -16,11 +16,11 @@ export class TokenManager {
         const expiresAt = payload?.exp ? payload.exp * 1000 : Date.now() + (15 * 60 * 1000);
 
         // Always use localStorage (rememberMe always true)
-        localStorage.setItem(this.ACCESS_TOKEN_KEY, token);
-        localStorage.setItem(this.TOKEN_EXPIRY_KEY, expiresAt.toString());
-        localStorage.setItem(this.REMEMBER_ME_KEY, 'true');
-        sessionStorage.removeItem(this.ACCESS_TOKEN_KEY);
-        sessionStorage.removeItem(this.TOKEN_EXPIRY_KEY);
+            localStorage.setItem(this.ACCESS_TOKEN_KEY, token);
+            localStorage.setItem(this.TOKEN_EXPIRY_KEY, expiresAt.toString());
+            localStorage.setItem(this.REMEMBER_ME_KEY, 'true');
+            sessionStorage.removeItem(this.ACCESS_TOKEN_KEY);
+            sessionStorage.removeItem(this.TOKEN_EXPIRY_KEY);
     }
 
     static getAccessToken(): string | null {
@@ -55,8 +55,8 @@ export class TokenManager {
         const userDataStr = JSON.stringify(userData);
         
         // Always use localStorage (rememberMe always true)
-        localStorage.setItem(this.USER_DATA_KEY, userDataStr);
-        sessionStorage.removeItem(this.USER_DATA_KEY);
+            localStorage.setItem(this.USER_DATA_KEY, userDataStr);
+            sessionStorage.removeItem(this.USER_DATA_KEY);
     }
 
     static getUserData(): any | null {
