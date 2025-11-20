@@ -9,6 +9,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthApiService, { AdminUser, LoginCredentials } from '@/services/authService';
+import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 
 // Context types with null-safety
 interface AuthContextType {
@@ -384,6 +385,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         return () => clearInterval(interval);
     }, [isAuthenticated]);
+
+    /**
+     * Set up session timeout (5 minutes of inactivity)
+     * Logout automatically if no user interaction for 5 minutes
+     */
+    useSessionTimeout({
+        timeout: 5 * 60 * 1000, // 5 minutes in milliseconds
+        onTimeout: logout,
+        enabled: isAuthenticated, // Only enable when authenticated
+    });
 
     /**
      * Context value with all auth methods and state

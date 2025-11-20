@@ -5,6 +5,7 @@ import { TokenManager } from '@/utils/tokenManager';
 import { ApiClient } from '@/utils/apiClient';
 import { GlobalErrorHandler } from '@/utils/globalErrorHandler';
 import { useTokenRefresh } from '@/hooks/useTokenRefresh';
+import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 
 interface User {
     id: number;
@@ -34,7 +35,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     useTokenRefresh();
     
-    // Session timeout removed - users stay logged in permanently
+    /**
+     * Set up session timeout (5 minutes of inactivity)
+     * Logout automatically if no user interaction for 5 minutes
+     */
+    useSessionTimeout({
+        timeout: 5 * 60 * 1000, // 5 minutes in milliseconds
+        onTimeout: async () => {
+            // Logout when timeout occurs
+            await logout();
+        },
+        enabled: isLoggedIn, // Only enable when logged in
+    });
 
     useEffect(() => {
         const checkAuthStatus = async () => {
