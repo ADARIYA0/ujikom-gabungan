@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { apiRequest, getErrorMessage } from '@/utils/globalErrorHandler';
+import NotFound from '@/app/not-found';
 
 type ResetStep = 'email' | 'verify-otp' | 'new-password';
 
@@ -55,6 +56,7 @@ function ResetPasswordContent() {
     const [lockCountdown, setLockCountdown] = useState(0);
     const [attemptCount, setAttemptCount] = useState(0);
     const [maxAttempts] = useState(3);
+    const [isValidAccess, setIsValidAccess] = useState<boolean | null>(null);
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
     const checkPasswordResetRequestStatus = async (email: string) => {
@@ -829,7 +831,7 @@ function ResetPasswordContent() {
                         <Button
                             type="submit"
                             className="w-full font-medium cursor-pointer"
-                            disabled={isSubmitting || !newPassword || !confirmPassword || !!success}
+                            disabled={isSubmitting || !newPassword || !confirmPassword}
                         >
                             {isSubmitting ? (
                                 <svg
@@ -887,7 +889,7 @@ function ResetPasswordContent() {
                     onClick={handleBack}
                     className="flex items-center text-foreground hover:bg-muted/50 cursor-pointer"
                     size="sm"
-                    disabled={isSubmitting || !!success}
+                    disabled={isSubmitting}
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-4 w-4">
                         <path d="M19 12H5M12 19l-7-7 7-7" />

@@ -12,6 +12,7 @@ export default function RegisterPage() {
     const router = useRouter();
     const { isLoggedIn } = useAuth();
     const [formData, setFormData] = useState({
+        name: '',
         email: '',
         no_handphone: '',
         password: '',
@@ -38,6 +39,14 @@ export default function RegisterPage() {
 
     const validateFormAndReturnErrors = () => {
         const newErrors: Record<string, string> = {};
+
+        if (!formData.name) {
+            newErrors.name = 'Nama lengkap wajib diisi';
+        } else if (formData.name.trim().length < 2) {
+            newErrors.name = 'Nama lengkap minimal 2 karakter';
+        } else if (formData.name.trim().length > 100) {
+            newErrors.name = 'Nama lengkap maksimal 100 karakter';
+        }
 
         if (!formData.email) {
             newErrors.email = 'Email wajib diisi';
@@ -126,6 +135,7 @@ export default function RegisterPage() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
+                    name: formData.name.trim(),
                     email: formData.email,
                     no_handphone: formData.no_handphone,
                     password: formData.password,
@@ -200,6 +210,22 @@ export default function RegisterPage() {
                                     className={errors.email ? 'border-red-500' : ''}
                                 />
                                 {errors.email && <p className="text-sm text-red-600">{errors.email}</p>}
+                            </div>
+
+                            {/* Nama Lengkap */}
+                            <div className="space-y-2">
+                                <label htmlFor="name" className="block text-sm font-medium text-foreground">Nama Lengkap <span className="text-red-500">*</span></label>
+                                <Input
+                                    id="name"
+                                    type="text"
+                                    placeholder="Masukkan nama lengkap Anda"
+                                    autoComplete="name"
+                                    value={formData.name}
+                                    onChange={(e) => handleInputChange('name', e.target.value)}
+                                    disabled={isSubmitting}
+                                    className={errors.name ? 'border-red-500' : ''}
+                                />
+                                {errors.name && <p className="text-sm text-red-600">{errors.name}</p>}
                             </div>
 
                             {/* Nomor Handphone */}

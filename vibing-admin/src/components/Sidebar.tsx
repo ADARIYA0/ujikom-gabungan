@@ -18,9 +18,11 @@ import {
   ChevronRight,
   CheckCircle,
   XCircle,
-  FileText
+  FileText,
+  LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SidebarProps {
   className?: string;
@@ -31,6 +33,7 @@ export default function Sidebar({ className }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useLocalStorage('sidebar-collapsed', false);
   const [isMounted, setIsMounted] = useState(false);
   const pathname = usePathname();
+  const { logout } = useAuth();
 
   // Handle hydration
   useEffect(() => {
@@ -201,9 +204,33 @@ export default function Sidebar({ className }: SidebarProps) {
 
         {/* Footer Section */}
         <div className={cn(
-          "p-4 border-t border-sidebar-border",
+          "p-4 border-t border-sidebar-border space-y-3",
           isCollapsed ? "px-2" : "px-4"
         )}>
+          {/* Logout Button */}
+          <Button
+            variant="ghost"
+            onClick={async () => {
+              await logout();
+            }}
+            className={cn(
+              "w-full h-10 transition-all duration-200",
+              isCollapsed ? "justify-center px-0" : "justify-start px-3",
+              "text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+            )}
+            title={isCollapsed ? "Logout" : undefined}
+          >
+            <LogOut className={cn(
+              "h-4 w-4 flex-shrink-0",
+              !isCollapsed && "mr-3"
+            )} />
+            {!isCollapsed && (
+              <span className="text-sm font-medium">
+                Logout
+              </span>
+            )}
+          </Button>
+
           {!isCollapsed && (
             <div className="text-center">
               <p className="text-xs text-muted-foreground">
