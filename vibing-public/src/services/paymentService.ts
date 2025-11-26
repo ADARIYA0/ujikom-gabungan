@@ -137,7 +137,7 @@ export class PaymentService {
   static async getPaymentByEventId(eventId: number): Promise<PaymentStatusResponse> {
     try {
       const result = await ApiClient.request<{ message: string; data: PaymentStatusResponse['data'] }>(
-        `/payment/event/${eventId}`,
+        `/payment/events/${eventId}`,
         {
           method: 'GET',
         }

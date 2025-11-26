@@ -24,7 +24,11 @@ import {
   CreditCard,
   AlertCircle,
   ExternalLink,
-  Download
+  Download,
+  Home,
+  Search,
+  BadgePercent,
+  Contact
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { EventService } from '@/services/eventService';
@@ -62,9 +66,32 @@ export default function ProfilePage() {
     router.back();
   };
 
+  const headerItems = [
+    {
+      name: "Beranda",
+      link: "/",
+      icon: <Home className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Cari Kegiatan",
+      link: "/events",
+      icon: <Search className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Harga",
+      link: "/pricing",
+      icon: <BadgePercent className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Tentang Kami",
+      link: "/about",
+      icon: <Contact className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header currentView="profile" />
+      <Header headerItems={headerItems} />
       
       <div className="pt-24 pb-16">
         <div className="container mx-auto px-4">
@@ -83,7 +110,7 @@ export default function ProfilePage() {
           {/* Profile Header */}
           <div className="mb-8">
             <Card className="border-0 shadow-large overflow-hidden">
-              <div className="bg-gradient-to-r from-primary to-teal-600 p-8">
+              <div className="bg-gradient-to-r from-primary to-slate-600 p-8">
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
                   <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg">
                     <User className="h-12 w-12 text-primary" />
@@ -92,7 +119,7 @@ export default function ProfilePage() {
                     <h1 className="text-3xl font-bold text-white mb-2">
                       {user?.name || 'User'}
                     </h1>
-                    <p className="text-teal-100 mb-4">{user?.email || ''}</p>
+                    <p className="text-slate-100 mb-4">{user?.email || ''}</p>
                     <div className="flex flex-wrap gap-2 justify-center md:justify-start">
                       <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm">
                         Member Aktif
@@ -234,7 +261,7 @@ export default function ProfilePage() {
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="p-4 bg-teal-50 rounded-xl border border-teal-100">
+                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
                           <div className="flex items-center gap-3 mb-2">
                             <Ticket className="h-5 w-5 text-primary" />
                             <span className="text-sm font-medium text-gray-600">Event Terdaftar</span>
@@ -291,7 +318,7 @@ export default function ProfilePage() {
                         <p className="text-sm text-gray-500 mb-6">
                           Daftarkan diri Anda untuk event yang menarik!
                         </p>
-                        <Button onClick={() => router.push('/event')}>
+                        <Button onClick={() => router.push('/events')}>
                           Cari Event
                         </Button>
                       </CardContent>
@@ -380,7 +407,7 @@ export default function ProfilePage() {
                               </div>
                               <div className="flex flex-col gap-2 md:justify-center">
                                 <Button
-                                  onClick={() => router.push(`/event/${event.slug}`)}
+                                  onClick={() => router.push(`/events/${event.slug}`)}
                                   variant="outline"
                                   className="w-full md:w-auto"
                                 >
@@ -388,7 +415,7 @@ export default function ProfilePage() {
                                 </Button>
                                 {canCheckIn && (
                                   <Button
-                                    onClick={() => router.push(`/event/${event.slug}`)}
+                                    onClick={() => router.push(`/events/${event.slug}`)}
                                     className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700"
                                   >
                                     Isi Daftar Hadir
@@ -434,7 +461,7 @@ export default function ProfilePage() {
                         <p className="text-sm text-gray-500 mb-6">
                           Riwayat kegiatan akan muncul setelah Anda menyelesaikan event
                         </p>
-                        <Button onClick={() => router.push('/event')}>
+                        <Button onClick={() => router.push('/events')}>
                           Cari Event
                         </Button>
                       </CardContent>
@@ -513,7 +540,7 @@ export default function ProfilePage() {
                               </div>
                               <div className="flex flex-col gap-2 md:justify-center">
                                 <Button
-                                  onClick={() => router.push(`/event/${event.slug}`)}
+                                  onClick={() => router.push(`/events/${event.slug}`)}
                                   variant="outline"
                                   className="w-full md:w-auto"
                                 >
@@ -538,7 +565,7 @@ export default function ProfilePage() {
                                         if (!finalAttendanceId) {
                                           // Try to get attendance_id from event detail
                                           try {
-                                            const eventDetailResponse = await fetch(`${API_BASE_URL}/event/${event.slug}`, {
+                                            const eventDetailResponse = await fetch(`${API_BASE_URL}/events/${event.slug}`, {
                                               headers: {
                                                 'Authorization': `Bearer ${token}`
                                               }
@@ -616,7 +643,7 @@ export default function ProfilePage() {
                                         alert('Gagal mengunduh sertifikat. Silakan coba lagi.');
                                       }
                                     }}
-                                    className="w-full md:w-auto bg-primary hover:bg-teal-700"
+                                    className="w-full md:w-auto bg-primary hover:bg-slate-700"
                                   >
                                     <Download className="h-4 w-4 mr-2" />
                                     Download Sertifikat
@@ -676,7 +703,7 @@ export default function ProfilePage() {
                         <p className="text-sm text-gray-500 mb-6">
                           Belum ada pembayaran untuk kegiatan berbayar.
                         </p>
-                        <Button onClick={() => router.push('/event')}>
+                        <Button onClick={() => router.push('/events')}>
                           Cari Event
                         </Button>
                       </CardContent>
@@ -792,7 +819,7 @@ export default function ProfilePage() {
                               <div className="flex flex-col gap-2 md:justify-center">
                                 {payment.event && (
                                   <Button
-                                    onClick={() => router.push(`/event/${payment.event.slug}`)}
+                                    onClick={() => router.push(`/events/${payment.event.slug}`)}
                                     variant="outline"
                                     className="w-full md:w-auto"
                                   >
@@ -802,7 +829,7 @@ export default function ProfilePage() {
                                 {isPending && (
                                   <Button
                                     onClick={() => router.push(`/payment?payment_id=${payment.paymentId}${payment.event ? `&event_id=${payment.event.id}` : ''}`)}
-                                    className="w-full md:w-auto bg-primary hover:bg-teal-700"
+                                    className="w-full md:w-auto bg-primary hover:bg-slate-700"
                                   >
                                     <CreditCard className="h-4 w-4 mr-2" />
                                     Lanjutkan Pembayaran
@@ -848,7 +875,7 @@ export default function ProfilePage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Button
-                    onClick={() => router.push('/event')}
+                    onClick={() => router.push('/events')}
                     className="w-full justify-start"
                     variant="outline"
                   >

@@ -22,7 +22,7 @@ export function EventCard({ event, onViewDetails, onRegister, onCheckIn, isLogge
   const router = useRouter();
 
   const handleViewDetails = () => {
-    router.push(`/event/${event.slug}?from=${fromPage}`);
+    router.push(`/events/${event.slug}?from=${fromPage}`);
   };
 
   const isEventFull = EventService.isEventFull(event);
@@ -41,11 +41,11 @@ export function EventCard({ event, onViewDetails, onRegister, onCheckIn, isLogge
     }`}>
       {/* Glow effect on hover */}
       {!isEventPassed && (
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-teal-500/0 to-primary/0 group-hover:from-primary/10 group-hover:via-teal-500/15 group-hover:to-primary/10 rounded-lg transition-all duration-300 pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-slate-500/0 to-primary/0 group-hover:from-primary/10 group-hover:via-slate-500/15 group-hover:to-primary/10 rounded-lg transition-all duration-300 pointer-events-none"></div>
       )}
       {/* Animated border glow */}
       {!isEventPassed && (
-        <div className="absolute -inset-0.5 bg-gradient-to-r from-primary via-teal-500 to-primary rounded-lg opacity-0 group-hover:opacity-20 blur-sm transition-opacity duration-300 -z-10"></div>
+        <div className="absolute -inset-0.5 bg-gradient-to-r from-primary via-slate-500 to-primary rounded-lg opacity-0 group-hover:opacity-20 blur-sm transition-opacity duration-300 -z-10"></div>
       )}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 group-hover:from-black/40 transition-all duration-300"></div>
@@ -80,7 +80,7 @@ export function EventCard({ event, onViewDetails, onRegister, onCheckIn, isLogge
       </div>
       
       <CardContent className="p-6 flex-1 flex flex-col">
-        <h3 className="font-bold mb-3 line-clamp-2 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-primary group-hover:via-teal-400 group-hover:to-primary transition-all duration-300 text-white leading-tight text-lg">
+        <h3 className="font-bold mb-3 line-clamp-2 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-primary group-hover:via-slate-400 group-hover:to-primary transition-all duration-300 text-white leading-tight text-lg">
           {event.judul_kegiatan}
         </h3>
         <p className="text-gray-400 mb-5 line-clamp-2 leading-relaxed group-hover:text-gray-300 transition-colors">
@@ -95,8 +95,8 @@ export function EventCard({ event, onViewDetails, onRegister, onCheckIn, isLogge
             <span className="text-gray-300 font-medium">{EventService.formatEventDate(event.waktu_mulai)}</span>
           </div>
           <div className="flex items-center text-sm text-gray-400 group-hover:text-gray-300 transition-colors">
-            <div className="p-1.5 rounded-lg bg-teal-500/10 group-hover:bg-teal-500/20 transition-colors mr-2">
-              <Clock className="h-3.5 w-3.5 text-teal-400 flex-shrink-0" />
+            <div className="p-1.5 rounded-lg bg-slate-500/10 group-hover:bg-slate-500/20 transition-colors mr-2">
+              <Clock className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
             </div>
             <span className="text-gray-300 font-medium">{EventService.formatEventTime(event.waktu_mulai)} WIB</span>
           </div>
@@ -115,7 +115,7 @@ export function EventCard({ event, onViewDetails, onRegister, onCheckIn, isLogge
         </div>
 
         <div className="flex items-center justify-between mb-5 mt-auto">
-          <span className={`font-bold text-lg bg-gradient-to-r from-primary via-teal-400 to-primary bg-clip-text text-transparent ${isEventPassed ? 'opacity-50' : ''}`}>
+          <span className={`font-bold text-lg bg-gradient-to-r from-primary via-slate-400 to-primary bg-clip-text text-transparent ${isEventPassed ? 'opacity-50' : ''}`}>
             {EventService.formatPrice(event.harga)}
           </span>
           {isEventPassed ? (
@@ -123,7 +123,7 @@ export function EventCard({ event, onViewDetails, onRegister, onCheckIn, isLogge
               Event Selesai
             </div>
           ) : (
-            <div className="text-xs text-teal-200 bg-gradient-to-r from-teal-900/50 to-teal-800/50 px-3 py-1.5 rounded-full font-medium border border-teal-700/50 backdrop-blur-sm">
+            <div className="text-xs text-slate-200 bg-gradient-to-r from-slate-900/50 to-slate-800/50 px-3 py-1.5 rounded-full font-medium border border-slate-700/50 backdrop-blur-sm">
               {event.kapasitas_peserta - event.attendee_count} slot tersisa
             </div>
           )}
@@ -153,16 +153,16 @@ export function EventCard({ event, onViewDetails, onRegister, onCheckIn, isLogge
               <Button
                 onClick={() => onRegister(event.id)}
                 disabled={isEventFull || isEventPassed || isEventStarted}
-                className="h-11 bg-primary hover:bg-teal-700 text-white disabled:bg-gray-300 disabled:text-gray-500 transition-colors font-semibold"
+                className="h-11 bg-primary hover:bg-slate-700 text-white disabled:bg-gray-300 disabled:text-gray-500 transition-colors font-semibold"
               >
                 {isEventPassed ? 'Event Sudah Berlalu' : isEventStarted ? 'Pendaftaran Ditutup' : isEventFull ? 'Penuh' : isPaidEvent ? 'Bayar' : 'Daftar'}
               </Button>
             )
           ) : (
             <Button
-              onClick={() => router.push(`/login?returnUrl=${encodeURIComponent(`/event/${event.slug}`)}`)}
+              onClick={() => router.push(`/login?returnUrl=${encodeURIComponent(`/events/${event.slug}`)}`)}
               disabled={isEventStarted || isEventPassed}
-              className="h-11 bg-primary hover:bg-teal-700 text-white disabled:bg-gray-300 disabled:text-gray-500 transition-colors font-semibold"
+              className="h-11 bg-primary hover:bg-slate-700 text-white disabled:bg-gray-300 disabled:text-gray-500 transition-colors font-semibold"
             >
               {isEventPassed ? 'Event Sudah Berlalu' : isEventStarted ? 'Pendaftaran Ditutup' : 'Login Dulu'}
             </Button>

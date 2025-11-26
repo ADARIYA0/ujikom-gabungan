@@ -72,7 +72,7 @@ export function Hero({
                   ) : null}
                   
                   {/* Fallback content */}
-                  <div className="fallback-content absolute inset-0 flex items-center justify-center bg-gradient-to-br from-teal-600 to-teal-800 text-white transition-all duration-300 group-hover:brightness-50" style={{ display: category.kategori_logo_url ? 'none' : 'flex' }}>
+                  <div className="fallback-content absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-600 to-slate-800 text-white transition-all duration-300 group-hover:brightness-50" style={{ display: category.kategori_logo_url ? 'none' : 'flex' }}>
                     <div className="text-center p-1">
                       <div className="text-lg font-bold mb-0.5">
                         {category.nama_kategori.charAt(0).toUpperCase()}
@@ -126,7 +126,7 @@ export function Hero({
                   ) : null}
                   
                   {/* Fallback content */}
-                  <div className="fallback-content absolute inset-0 flex items-center justify-center bg-gradient-to-br from-teal-600 to-teal-800 text-white transition-all duration-300 group-hover:brightness-50" style={{ display: category.kategori_logo_url ? 'none' : 'flex' }}>
+                  <div className="fallback-content absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-600 to-slate-800 text-white transition-all duration-300 group-hover:brightness-50" style={{ display: category.kategori_logo_url ? 'none' : 'flex' }}>
                     <div className="text-center p-2">
                       <div className="text-lg font-bold mb-1">
                         {category.nama_kategori.charAt(0).toUpperCase()}
@@ -184,7 +184,7 @@ export function Hero({
                   ) : null}
                   
                   {/* Fallback content when image fails or doesn't exist */}
-                  <div className="fallback-content absolute inset-0 flex items-center justify-center bg-gradient-to-br from-teal-600 to-teal-800 text-white transition-all duration-300 group-hover:brightness-50" style={{ display: category.kategori_logo_url ? 'none' : 'flex' }}>
+                  <div className="fallback-content absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-600 to-slate-800 text-white transition-all duration-300 group-hover:brightness-50" style={{ display: category.kategori_logo_url ? 'none' : 'flex' }}>
                     <div className="text-center p-2">
                       <div className="text-lg md:text-xl font-bold mb-1">
                         {category.nama_kategori.charAt(0).toUpperCase()}
@@ -260,17 +260,17 @@ export function Hero({
                 categories.map((category, index) => (
                   <React.Fragment key={`first-${category.id}`}>
                     <span>{category.nama_kategori}</span>
-                    {index < categories.length - 1 && <span className="text-teal-600">•</span>}
+                    {index < categories.length - 1 && <span className="text-slate-600">•</span>}
                   </React.Fragment>
                 ))
               ) : (
                 <>
                   <span>WORKSHOP</span>
-                  <span className="text-teal-600">•</span>
+                  <span className="text-slate-600">•</span>
                   <span>SEMINAR</span>
-                  <span className="text-teal-600">•</span>
+                  <span className="text-slate-600">•</span>
                   <span>PELATIHAN</span>
-                  <span className="text-teal-600">•</span>
+                  <span className="text-slate-600">•</span>
                   <span>WEBINAR</span>
                 </>
               )}
@@ -282,17 +282,17 @@ export function Hero({
                 categories.map((category, index) => (
                   <React.Fragment key={`second-${category.id}`}>
                     <span>{category.nama_kategori}</span>
-                    {index < categories.length - 1 && <span className="text-teal-600">•</span>}
+                    {index < categories.length - 1 && <span className="text-slate-600">•</span>}
                   </React.Fragment>
                 ))
               ) : (
                 <>
                   <span>WORKSHOP</span>
-                  <span className="text-teal-600">•</span>
+                  <span className="text-slate-600">•</span>
                   <span>SEMINAR</span>
-                  <span className="text-teal-600">•</span>
+                  <span className="text-slate-600">•</span>
                   <span>PELATIHAN</span>
-                  <span className="text-teal-600">•</span>
+                  <span className="text-slate-600">•</span>
                   <span>WEBINAR</span>
                 </>
               )}

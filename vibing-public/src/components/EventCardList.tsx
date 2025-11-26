@@ -22,7 +22,7 @@ export function EventCardList({ event, onViewDetails, onRegister, onCheckIn, isL
     const router = useRouter();
 
     const handleViewDetails = () => {
-        router.push(`/event/${event.slug}?from=${fromPage}`);
+        router.push(`/events/${event.slug}?from=${fromPage}`);
     };
 
     const isEventFull = EventService.isEventFull(event);
@@ -136,16 +136,16 @@ export function EventCardList({ event, onViewDetails, onRegister, onCheckIn, isL
                                         <Button
                                             onClick={() => onRegister(event.id)}
                                             disabled={isEventFull || isEventPassed || isEventStarted}
-                                            className="h-10 px-6 bg-primary hover:bg-teal-700 text-white disabled:bg-gray-300 disabled:text-gray-500 transition-colors font-semibold"
+                                            className="h-10 px-6 bg-primary hover:bg-slate-700 text-white disabled:bg-gray-300 disabled:text-gray-500 transition-colors font-semibold"
                                         >
                                             {isEventPassed ? 'Event Sudah Berlalu' : isEventStarted ? 'Pendaftaran Ditutup' : isEventFull ? 'Penuh' : isPaidEvent ? 'Bayar' : 'Daftar'}
                                         </Button>
                                     )
                                 ) : (
                                     <Button
-                                        onClick={() => router.push(`/login?returnUrl=${encodeURIComponent(`/event/${event.slug}`)}`)}
+                                        onClick={() => router.push(`/login?returnUrl=${encodeURIComponent(`/events/${event.slug}`)}`)}
                                         disabled={isEventStarted || isEventPassed}
-                                        className="h-10 px-6 bg-primary hover:bg-teal-700 text-white disabled:bg-gray-300 disabled:text-gray-500 transition-colors font-semibold"
+                                        className="h-10 px-6 bg-primary hover:bg-slate-700 text-white disabled:bg-gray-300 disabled:text-gray-500 transition-colors font-semibold"
                                     >
                                         {isEventPassed ? 'Event Sudah Berlalu' : isEventStarted ? 'Pendaftaran Ditutup' : 'Login Dulu'}
                                     </Button>

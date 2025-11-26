@@ -22,7 +22,7 @@ export class EventService {
     if (filters.time_range) params.append('time_range', filters.time_range);
 
     const queryString = params.toString();
-    const endpoint = `/event${queryString ? `?${queryString}` : ''}`;
+    const endpoint = `/events${queryString ? `?${queryString}` : ''}`;
     
     const result = await ApiClient.request<EventsResponse>(endpoint);
     
@@ -34,7 +34,7 @@ export class EventService {
   }
 
   static async getEventById(id: number): Promise<Event> {
-    const result = await ApiClient.request<Event>(`/event/${id}`);
+    const result = await ApiClient.request<Event>(`/events/${id}`);
     
     if (result.success && result.data) {
       return result.data;
@@ -44,7 +44,7 @@ export class EventService {
   }
 
   static async getEventBySlug(slug: string): Promise<Event> {
-    const result = await ApiClient.request<Event>(`/event/slug/${slug}`);
+    const result = await ApiClient.request<Event>(`/events/slug/${slug}`);
     
     if (result.success && result.data) {
       return result.data;
@@ -137,7 +137,7 @@ export class EventService {
   }
 
   static getImageUrl(imagePath: string | null | undefined): string {
-    if (!imagePath) return '/event/default-event.jpg';
+    if (!imagePath) return '/events/default-event.jpg';
     if (imagePath.startsWith('http')) return imagePath;
     
     // Backend stores flyer in /uploads/flyer/ directory
@@ -146,7 +146,7 @@ export class EventService {
 
   static getCategoryColor(categoryName: string): string {
     const colors: Record<string, string> = {
-      'Konferensi': 'bg-teal-50 text-teal-700 border-teal-200',
+      'Konferensi': 'bg-slate-50 text-slate-700 border-slate-200',
       'Workshop': 'bg-blue-50 text-blue-700 border-blue-200',
       'Seminar': 'bg-slate-50 text-slate-700 border-slate-200',
       'Meetup': 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -167,7 +167,7 @@ export class EventService {
       amount?: number;
     };
   }> {
-    const result = await ApiClient.request<{ message: string; data?: { eventId?: number; attendanceId?: number; requiresPayment: boolean; amount: number } }>(`/event/${eventId}/register`, {
+    const result = await ApiClient.request<{ message: string; data?: { eventId?: number; attendanceId?: number; requiresPayment: boolean; amount: number } }>(`/events/${eventId}/register`, {
       method: 'POST',
     });
 
@@ -189,7 +189,7 @@ export class EventService {
   }
 
   static async checkInEvent(eventId: number, token: string): Promise<{ success: boolean; message: string; error?: string }> {
-    const result = await ApiClient.request<{ message: string }>(`/event/${eventId}/checkin`, {
+    const result = await ApiClient.request<{ message: string }>(`/events/${eventId}/checkin`, {
       method: 'POST',
       body: JSON.stringify({ token }),
     });

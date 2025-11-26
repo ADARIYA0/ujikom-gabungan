@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { EventCard } from '@/components/EventCard';
+import { Home, Search, BadgePercent, Contact } from 'lucide-react';
 import { EventCardList } from '@/components/EventCardList';
 import { SearchFilters } from '@/components/SearchFilters';
 import { Footer } from '@/components/Footer';
@@ -75,7 +76,7 @@ export default function EventPage() {
   };
 
   const handleViewEvent = (eventSlug: string) => {
-    router.push(`/event/${eventSlug}`);
+    router.push(`/events/${eventSlug}`);
   };
 
   const handleRegisterEvent = async (eventId: number) => {
@@ -169,22 +170,45 @@ export default function EventPage() {
       kategori && self.findIndex(k => k?.slug === kategori.slug) === index
     ) as EventCategory[];
 
+  const headerItems = [
+    {
+      name: "Beranda",
+      link: "/",
+      icon: <Home className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Cari Kegiatan",
+      link: "/events",
+      icon: <Search className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Harga",
+      link: "/pricing",
+      icon: <BadgePercent className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Tentang Kami",
+      link: "/about",
+      icon: <Contact className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
       {/* Animated Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-slate-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
         <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
       </div>
 
-      <Header currentView="search" />
+      <Header headerItems={headerItems} />
       
       {/* Hero Section */}
       <div className="relative z-10 pt-24 pb-12 md:pt-32 md:pb-16">
         <div className="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl">
           <div className="text-center mb-12 animate-in fade-in-0 slide-in-from-bottom-4">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 bg-gradient-to-r from-white via-teal-200 to-primary bg-clip-text text-transparent">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 bg-gradient-to-r from-white via-slate-200 to-primary bg-clip-text text-transparent">
               Temukan Event Terbaik
             </h1>
             <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto">
@@ -227,7 +251,7 @@ export default function EventPage() {
                   onClick={() => setViewMode('grid')}
                   className={`h-8 px-3 transition-all duration-300 ${
                     viewMode === 'grid'
-                      ? 'bg-gradient-to-r from-primary via-teal-500 to-primary shadow-lg shadow-primary/40 text-white scale-105'
+                      ? 'bg-gradient-to-r from-primary via-slate-500 to-primary shadow-lg shadow-primary/40 text-white scale-105'
                       : 'text-gray-400 hover:text-white hover:bg-gradient-to-r hover:from-gray-700/50 hover:to-gray-600/50'
                   }`}
                 >
@@ -239,7 +263,7 @@ export default function EventPage() {
                   onClick={() => setViewMode('list')}
                   className={`h-8 px-3 transition-all duration-300 ${
                     viewMode === 'list'
-                      ? 'bg-gradient-to-r from-primary via-teal-500 to-primary shadow-lg shadow-primary/40 text-white scale-105'
+                      ? 'bg-gradient-to-r from-primary via-slate-500 to-primary shadow-lg shadow-primary/40 text-white scale-105'
                       : 'text-gray-400 hover:text-white hover:bg-gradient-to-r hover:from-gray-700/50 hover:to-gray-600/50'
                   }`}
                 >
@@ -321,7 +345,7 @@ export default function EventPage() {
                   onRegister={handleRegisterEvent}
                     onCheckIn={handleCheckInClick}
                   isLoggedIn={isLoggedIn}
-                  fromPage="event"
+                  fromPage="events"
                 />
               ) : (
                 <EventCardList
@@ -330,7 +354,7 @@ export default function EventPage() {
                   onRegister={handleRegisterEvent}
                     onCheckIn={handleCheckInClick}
                   isLoggedIn={isLoggedIn}
-                  fromPage="event"
+                  fromPage="events"
                 />
                 )}
               </div>
@@ -346,8 +370,8 @@ export default function EventPage() {
             <DialogTitle>Isi Data Kehadiran</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="p-4 bg-teal-50 rounded-lg border border-teal-100">
-              <p className="text-sm text-teal-800">
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+              <p className="text-sm text-slate-800">
                 Masukkan kode token 10 digit yang telah dikirim ke email Anda untuk melakukan absensi.
               </p>
             </div>

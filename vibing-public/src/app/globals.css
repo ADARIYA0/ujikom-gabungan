@@ -10,7 +10,7 @@
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
-  --primary: #0d9488;
+  --primary: #475569;
   --primary-foreground: #ffffff;
   --secondary: #f8fafc;
   --secondary-foreground: #475569;
@@ -36,8 +36,8 @@
   --switch-background: #cbd5e1;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: #0d9488;
-  --chart-1: #0d9488;
+  --ring: #475569;
+  --chart-1: #475569;
   --chart-2: #0369a1;
   --chart-3: #ff6b6b;
   --chart-4: #059669;
@@ -45,22 +45,22 @@
   --radius: 0.75rem;
   --sidebar: #f8fafc;
   --sidebar-foreground: #0f172a;
-  --sidebar-primary: #0d9488;
+  --sidebar-primary: #475569;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #f1f5f9;
   --sidebar-accent-foreground: #475569;
   --sidebar-border: #e2e8f0;
-  --sidebar-ring: #0d9488;
+  --sidebar-ring: #475569;
 }
 
 .dark {
-  --background: #0f172a;
+  --background: #000000;
   --foreground: #f8fafc;
-  --card: #1e293b;
+  --card: #0e0e0e;
   --card-foreground: #f8fafc;
-  --popover: #1e293b;
+  --popover: #0e0e0e;
   --popover-foreground: #f8fafc;
-  --primary: #14b8a6;
+  --primary: #64748b;
   --primary-foreground: #ffffff;
   --secondary: #334155;
   --secondary-foreground: #cbd5e1;
@@ -72,22 +72,22 @@
   --destructive-foreground: #ffffff;
   --border: #334155;
   --input: #334155;
-  --ring: #14b8a6;
+  --ring: #64748b;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --chart-1: #14b8a6;
+  --chart-1: #64748b;
   --chart-2: #0369a1;
   --chart-3: #ff6b6b;
   --chart-4: #059669;
   --chart-5: #d97706;
   --sidebar: #1e293b;
   --sidebar-foreground: #f8fafc;
-  --sidebar-primary: #14b8a6;
+  --sidebar-primary: #64748b;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #334155;
   --sidebar-accent-foreground: #cbd5e1;
   --sidebar-border: #334155;
-  --sidebar-ring: #14b8a6;
+  --sidebar-ring: #64748b;
 }
 
 @theme inline {
@@ -232,7 +232,7 @@ html {
   }
 
   .shadow-xl-colored {
-    box-shadow: 0 20px 25px -5px rgba(13, 148, 136, 0.15), 0 10px 10px -5px rgba(13, 148, 136, 0.05);
+    box-shadow: 0 20px 25px -5px rgba(71, 85, 105, 0.15), 0 10px 10px -5px rgba(71, 85, 105, 0.05);
   }
 
   /* Infinite marquee animation - Responsive */

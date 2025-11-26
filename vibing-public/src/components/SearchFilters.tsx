@@ -90,7 +90,7 @@ export function SearchFilters({
     <div className="space-y-4">
       {/* Search Bar */}
       <div className="relative group">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/30 via-teal-500/30 to-primary/30 rounded-lg blur-xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-300"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/30 via-slate-500/30 to-primary/30 rounded-lg blur-xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-300"></div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 group-hover:text-primary group-focus-within:text-primary transition-colors duration-300" />
           <Input
@@ -112,7 +112,7 @@ export function SearchFilters({
                 <Filter className="h-4 w-4 mr-2" />
                 Filter
                 {getActiveFiltersCount() > 0 && (
-                  <Badge className="ml-2 bg-gradient-to-r from-primary to-teal-500 text-white text-xs shadow-lg shadow-primary/30">
+                  <Badge className="ml-2 bg-gradient-to-r from-primary to-slate-500 text-white text-xs shadow-lg shadow-primary/30">
                     {getActiveFiltersCount()}
                   </Badge>
                 )}
@@ -126,7 +126,7 @@ export function SearchFilters({
                   variant="ghost"
                   size="sm"
                   onClick={onClearFilters}
-                  className="text-primary hover:text-teal-700"
+                  className="text-primary hover:text-slate-700"
                 >
                   Reset
                 </Button>
@@ -214,7 +214,7 @@ export function SearchFilters({
             variant="ghost"
             size="sm"
             onClick={onClearFilters}
-            className="text-primary hover:text-teal-700"
+            className="text-primary hover:text-slate-700"
           >
             Hapus Filter
           </Button>
@@ -229,7 +229,7 @@ export function SearchFilters({
             <Badge
               key={index}
               variant="secondary"
-              className="flex items-center gap-1 bg-gradient-to-r from-teal-900/80 to-primary/80 text-teal-100 border-teal-600/50 text-xs shadow-md shadow-teal-500/20 hover:shadow-teal-500/30 transition-all duration-300"
+              className="flex items-center gap-1 bg-gradient-to-r from-slate-900/80 to-primary/80 text-slate-100 border-slate-600/50 text-xs shadow-md shadow-slate-500/20 hover:shadow-slate-500/30 transition-all duration-300"
             >
               {filter.label}
               <button

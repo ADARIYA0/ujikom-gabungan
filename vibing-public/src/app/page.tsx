@@ -2,18 +2,34 @@
 
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
-import { Hero } from '@/components/Hero';
+import { Hero45 } from '@/components/blocks/shadcnblocks-com-hero45';
+import { About3 } from '@/components/ui/about-3';
+import { FeaturesSectionWithHoverEffects } from '@/components/blocks/feature-section-with-hover-effects';
+import { PricingSection, type PricingTier } from '@/components/blocks/pricing-section';
+import { Feature197, type FeatureItem as FaqFeatureItem } from '@/components/ui/accordion-feature-section';
+import { 
+  Home as HomeIcon, 
+  Search, 
+  BadgePercent, 
+  Contact, 
+  HandHelping, 
+  Users, 
+  Zap,
+  Calendar, 
+  ChevronRight, 
+  AlertCircle,
+  Sparkles,
+  Briefcase
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { EventCard } from '@/components/EventCard';
 import { Footer } from '@/components/Footer';
-import { Calendar, ChevronRight, Star, Shield, Zap } from 'lucide-react';
 import { useEvents, useEventRegistration, useEventCheckIn } from '@/hooks/useEvents';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/components/ui/toast';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
@@ -30,7 +46,7 @@ export default function Home() {
   const [checkInToken, setCheckInToken] = useState('');
 
   const handleViewEvent = (eventSlug: string) => {
-    router.push(`/event/${eventSlug}`);
+    router.push(`/events/${eventSlug}`);
   };
 
   const handleRegisterEvent = async (eventId: number) => {
@@ -45,10 +61,10 @@ export default function Home() {
       // If payment is required, redirect to payment page immediately
       if (result.data?.requiresPayment) {
         // Don't show toast, redirect immediately
-        // Use eventId if available (new flow), otherwise use attendanceId (backward compatibility)
-        const paymentParam = result.data.eventId 
-          ? `event_id=${result.data.eventId}` 
-          : `attendance_id=${result.data.attendanceId}`;
+        // Use attendanceId for payment flow
+        const paymentParam = result.data.attendanceId 
+          ? `attendance_id=${result.data.attendanceId}` 
+          : '';
         router.push(`/payment?${paymentParam}`);
         return;
       }
@@ -110,7 +126,7 @@ export default function Home() {
 
   const handleViewChange = (view: string) => {
     if (view === 'search') {
-      router.push('/event');
+      router.push('/events');
     } else if (view === 'login') {
       router.push('/login');
     } else if (view === 'register') {
@@ -118,171 +134,205 @@ export default function Home() {
     }
   };
 
+  const headerItems = [
+    {
+      name: "Beranda",
+      link: "/",
+      icon: <HomeIcon className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Cari Kegiatan",
+      link: "/events",
+      icon: <Search className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Harga",
+      link: "/pricing",
+      icon: <BadgePercent className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Tentang Kami",
+      link: "/about",
+      icon: <Contact className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+  ];
+
+const pricingTiers: PricingTier[] = [
+  {
+    name: "Peserta",
+    price: {
+      monthly: 0,
+      yearly: 0,
+    },
+    description: "Akses gratis untuk anggota komunitas yang sudah membuat akun dan login.",
+    icon: <Sparkles className="h-6 w-6" />,
+    features: [
+      {
+        name: "Registrasi Kegiatan",
+        description: "Hanya bisa mendaftarkan diri ke Kegiatan yang gratis maupun berbayar.",
+        included: true,
+      },
+      {
+        name: "Absensi Digital",
+        description: "Absensi berbasis digital dengan token via email.",
+        included: true,
+      },
+      {
+        name: "Sertifikat Digital",
+        description: "Mendapatkan sertifikat digital dari kegiatan yang telah diikuti dan telah berakhir.",
+        included: true,
+      },
+    ],
+  },
+  {
+    name: "Organizer",
+    price: {
+      monthly: 99000,
+      yearly: 1089000,
+    },
+    description: "Seluruh alat yang dibutuhkan untuk mengelola dan memonetisasi event profesional.",
+    icon: <Briefcase className="h-6 w-6" />,
+    highlight: true,
+    badge: "Paling Populer",
+    features: [
+      {
+        name: "Buat Kegiatan Baru",
+        description: "Bisa membuat Kegiatan baru dengan fitur lengkap untuk manajemen event.",
+        included: true,
+      },
+      {
+        name: "Buat Kategori Kegiatan",
+        description: "Bisa membuat Kategori Kegiatan baru untuk mengorganisir berbagai jenis event.",
+        included: true,
+      },
+    ],
+  },
+];
+
+const faqFeatures: FaqFeatureItem[] = [
+  {
+    id: 1,
+    title: "Bagaimana memastikan peserta menerima tiket digitalnya?",
+    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=900&h=600&auto=format&fit=crop",
+    description:
+      "Setiap registrasi langsung mendapatkan email berisi tiket dan token check-in. Anda dapat menjadwalkan pengiriman ulang otomatis dan memonitor tiket yang belum dibuka pada dashboard analytics.",
+  },
+  {
+    id: 2,
+    title: "Apa saja kanal pembayaran yang didukung?",
+    image: "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=900&h=600&auto=format&fit=crop",
+    description:
+      "Platform ini terintegrasi dengan transfer bank, kartu kredit, dan e-wallet populer di Indonesia. Organizer bisa mengatur biaya admin, kode promo, hingga otomatisasi invoice untuk partner korporat.",
+  },
+  {
+    id: 3,
+    title: "Bagaimana cara mengatur absensi on-site dan online sekaligus?",
+    image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=900&h=600&auto=format&fit=crop",
+    description:
+      "Gunakan mode hybrid: peserta online cukup memasukkan token via dashboard, sementara peserta on-site melakukan scan QR. Hasil absensi tersinkron secara real-time sehingga laporan hadir tersedia seketika.",
+  },
+  {
+    id: 4,
+    title: "Bisakah sponsor melihat performa kampanye mereka?",
+    image: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=900&h=600&auto=format&fit=crop",
+    description:
+      "Ya, setiap sponsor memperoleh akses ke insight yang menampilkan impresi logo, klik CTA, hingga jumlah peserta yang menebus voucher. Anda bebas mengatur level akses untuk tiap sponsor.",
+  },
+  {
+    id: 5,
+    title: "Seberapa aman data peserta yang terkumpul?",
+    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=900&h=600&auto=format&fit=crop",
+    description:
+      "Seluruh data terenkripsi, backup otomatis harian, dan dapat diekspor dengan audit log. Anda dapat menetapkan role panitia agar hanya tim tertentu yang dapat mengunduh data sensitif.",
+  },
+];
+
   return (
     <div>
-      <Header
-        currentView="home"
-        onViewChange={handleViewChange}
-        transparent={true}
+      <Header headerItems={headerItems} />
+
+      {/* Hero Section - Using Hero45 Component */}
+      <Hero45
+        badge="vibing.my.id"
+        heading="Platform Event Terpercaya untuk Pengalaman Tak Terlupakan"
+        imageSrc="https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&h=600&fit=crop"
+        imageAlt="Event Platform"
+        features={[
+          {
+            icon: <HandHelping className="h-auto w-5" />,
+            title: "Dukungan Fleksibel",
+            description:
+              "Nikmati bantuan 24/7 untuk menjaga bisnis Anda berjalan lancar.",
+          },
+          {
+            icon: <Users className="h-auto w-5" />,
+            title: "Alat Kolaboratif",
+            description:
+              "Tingkatkan kerja tim dengan alat yang dirancang untuk menyederhanakan manajemen proyek dan komunikasi.",
+          },
+          {
+            icon: <Zap className="h-auto w-5" />,
+            title: "Kecepatan Super",
+            description:
+              "Rasakan waktu muat tercepat dengan server berkinerja tinggi kami.",
+          },
+        ]}
       />
 
-      {/* Hero Section - Using New Hero Component */}
-      <Hero
-        backgroundImage="/hero-background.jpg"
+      {/* About Section */}
+      <About3
+        title="VIBING adalah platform untuk mengelola event secara menyeluruh"
+        description="Dari perencanaan hingga absensi, VIBING menyatukan kanal komunikasi, registrasi, dan pembayaran dalam satu dashboard yang dapat diakses oleh tim mana pun."
+        mainImage={{
+          src: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1400&q=80",
+          alt: "Tim sedang merencanakan event",
+        }}
+        secondaryImage={{
+          src: "https://images.unsplash.com/photo-1487014679447-9f8336841d58?auto=format&fit=crop&w=1000&q=80",
+          alt: "Koordinasi tim online",
+        }}
+        breakout={{
+          src: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=900&q=80",
+          alt: "Live monitoring",
+          title: "Semua metrik dalam satu jendela",
+          description:
+            "Pantau registrasi, sponsor, kontrol akses, dan laporan keuangan tanpa beralih antar aplikasi.",
+          buttonText: "Jelajahi VIBING",
+          buttonUrl: "https://vibing.my.id",
+        }}
+        companiesTitle="Dipercaya oleh komunitas penyelenggara",
+        achievementsTitle="Angka dari setiap event yang kami bantu",
+        achievementsDescription="VIBING menjaga setiap detail tetap terlihat, mulai dari pengelolaan kategori hingga KPI pasca-event."
+        achievements={[
+          { label: "Event otomatis", value: "1.200+" },
+          { label: "Check-in terkirim", value: "250.000+" },
+          { label: "Kepuasan peserta", value: "98%" },
+          { label: "Rilis update", value: "35+" },
+        ]}
       />
 
-      {/* VIBE Section */}
-      <section className="bg-black relative overflow-hidden">
-        <div className="w-full h-full">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-0 w-full h-auto md:h-auto lg:h-[800px]">
-            <div className="group relative transition-all duration-500 h-auto min-h-[500px] md:h-[400px] lg:h-[800px] vibe-separator md:vibe-separator-tablet overflow-hidden">
-              
-              {/* Background dengan animasi hover */}
-              <div className="absolute inset-0 bg-black group-hover:bg-teal-600 transition-all duration-500"></div>
-              
-              {/* Face 2 - Huruf Besar dengan animasi perpindahan */}
-              <div className="absolute inset-0 flex flex-col justify-center transition-all duration-500 z-20">
-                <div className="relative p-8 md:p-12 text-center md:text-left w-full transform transition-all duration-500 group-hover:-translate-y-32 md:group-hover:-translate-y-40 lg:group-hover:-translate-y-48">
-                  {/* Teks Tagline V dengan animasi */}
-                  <div className="text-8xl md:text-9xl lg:text-[12rem] font-bold text-white group-hover:text-6xl group-hover:md:text-7xl group-hover:lg:text-8xl group-hover:text-black transition-all duration-500 group-hover:mb-6" style={{ lineHeight: '1' }}>
-                    V
-                  </div>
-                  
-                  {/* Konten Detail (muncul saat hover) */}
-                  <div className="opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-4 group-hover:translate-y-0">
-                    {/* Judul Vision */}
-                    <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-black mb-8 transition-colors duration-500 leading-tight">
-                      Vision
-                    </h3>
-                    
-                    {/* Deskripsi */}
-                    <p className="text-black text-sm md:text-base lg:text-lg leading-relaxed transition-colors duration-500">
-                      Kami percaya setiap acara dimulai dari sebuah visi.
-                      Kami membangun setiap konsep dengan pandangan jauh ke depan —
-                      menciptakan pengalaman yang tak hanya berkesan hari ini, tapi juga meninggalkan jejak untuk masa depan.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Overlay untuk efek visual */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            </div>
-
-            <div className="group relative transition-all duration-500 h-auto min-h-[500px] md:h-[400px] lg:h-[800px] vibe-separator md:vibe-separator-tablet-right overflow-hidden">
-              
-              {/* Background dengan animasi hover */}
-              <div className="absolute inset-0 bg-black group-hover:bg-teal-600 transition-all duration-500"></div>
-              
-              {/* Face 2 - Huruf Besar dengan animasi perpindahan */}
-              <div className="absolute inset-0 flex flex-col justify-center transition-all duration-500 z-20">
-                <div className="relative p-8 md:p-12 text-center md:text-left w-full transform transition-all duration-500 group-hover:-translate-y-32 md:group-hover:-translate-y-40 lg:group-hover:-translate-y-48">
-                  {/* Teks Tagline I dengan animasi */}
-                  <div className="text-8xl md:text-9xl lg:text-[12rem] font-bold text-white group-hover:text-6xl group-hover:md:text-7xl group-hover:lg:text-8xl group-hover:text-black transition-all duration-500 group-hover:mb-6" style={{ lineHeight: '1' }}>
-                    I
-                  </div>
-                  
-                  {/* Konten Detail (muncul saat hover) */}
-                  <div className="opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-4 group-hover:translate-y-0">
-                    {/* Judul Integrity */}
-                    <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-black mb-8 transition-colors duration-500 leading-tight">
-                      Integrity
-                    </h3>
-                    
-                    {/* Deskripsi */}
-                    <p className="text-black text-sm md:text-base lg:text-lg leading-relaxed transition-colors duration-500">
-                      Kejujuran dan komitmen adalah dasar setiap interaksi kami.
-                      Kami menjunjung tinggi transparansi dan profesionalisme dalam setiap tahap —
-                      dari ide hingga pelaksanaan.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Overlay untuk efek visual */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            </div>
-
-            <div className="group relative transition-all duration-500 h-auto min-h-[500px] md:h-[400px] lg:h-[800px] vibe-separator md:vibe-separator-tablet-bottom overflow-hidden">
-              
-              {/* Background dengan animasi hover */}
-              <div className="absolute inset-0 bg-black group-hover:bg-teal-600 transition-all duration-500"></div>
-              
-              {/* Face 2 - Huruf Besar dengan animasi perpindahan */}
-              <div className="absolute inset-0 flex flex-col justify-center transition-all duration-500 z-20">
-                <div className="relative p-8 md:p-12 text-center md:text-left w-full transform transition-all duration-500 group-hover:-translate-y-32 md:group-hover:-translate-y-40 lg:group-hover:-translate-y-48">
-                  {/* Teks Tagline B dengan animasi */}
-                  <div className="text-8xl md:text-9xl lg:text-[12rem] font-bold text-white group-hover:text-6xl group-hover:md:text-7xl group-hover:lg:text-8xl group-hover:text-black transition-all duration-500 group-hover:mb-6" style={{ lineHeight: '1' }}>
-                    B
-                  </div>
-                  
-                  {/* Konten Detail (muncul saat hover) */}
-                  <div className="opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-4 group-hover:translate-y-0">
-                    {/* Judul Boldness */}
-                    <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-black mb-8 transition-colors duration-500 leading-tight">
-                      Boldness
-                    </h3>
-                    
-                    {/* Deskripsi */}
-                    <p className="text-black text-sm md:text-base lg:text-lg leading-relaxed transition-colors duration-500">
-                      Kami berani berbeda.
-                      Kami menciptakan konsep yang segar, menantang batas,
-                      dan meninggalkan kesan mendalam dalam setiap pengalaman yang kami rancang.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Overlay untuk efek visual */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            </div>
-
-            <div className="group relative transition-all duration-500 h-auto min-h-[500px] md:h-[400px] lg:h-[800px] overflow-hidden">
-              
-              {/* Background dengan animasi hover */}
-              <div className="absolute inset-0 bg-black group-hover:bg-teal-600 transition-all duration-500"></div>
-              
-              {/* Face 2 - Huruf Besar dengan animasi perpindahan */}
-              <div className="absolute inset-0 flex flex-col justify-center transition-all duration-500 z-20">
-                <div className="relative p-8 md:p-12 text-center md:text-left w-full transform transition-all duration-500 group-hover:-translate-y-32 md:group-hover:-translate-y-40 lg:group-hover:-translate-y-48">
-                  {/* Teks Tagline E dengan animasi */}
-                  <div className="text-8xl md:text-9xl lg:text-[12rem] font-bold text-white group-hover:text-6xl group-hover:md:text-7xl group-hover:lg:text-8xl group-hover:text-black transition-all duration-500 group-hover:mb-6" style={{ lineHeight: '1' }}>
-                    E
-                  </div>
-                  
-                  {/* Konten Detail (muncul saat hover) */}
-                  <div className="opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-4 group-hover:translate-y-0">
-                    {/* Judul Experience */}
-                    <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-black mb-8 transition-colors duration-500 leading-tight">
-                      Experience
-                    </h3>
-                    
-                    {/* Deskripsi */}
-                    <p className="text-black text-sm md:text-base lg:text-lg leading-relaxed transition-colors duration-500">
-                      Setiap event adalah pengalaman.
-                      Kami merancang momen yang menggugah emosi, mempertemukan orang, dan
-                      menciptakan kenangan yang melekat lama setelah acara berakhir.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Overlay untuk efek visual */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            </div>
+      {/* Features Section with Hover Effects */}
+      <section className="py-16 bg-background dark:bg-black transition-colors">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900 dark:text-white">Fitur Unggulan Platform</h2>
+            <p className="text-gray-600 dark:text-slate-300 max-w-2xl mx-auto text-lg">
+              Solusi lengkap untuk semua kebutuhan manajemen event Anda
+            </p>
           </div>
+          <FeaturesSectionWithHoverEffects />
         </div>
       </section>
 
       {/* Featured Events */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-background dark:bg-[#050505] transition-colors">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <Badge className="bg-teal-100 text-teal-700 border-teal-200 mb-4 font-semibold">
-              Event Populer
+            <Badge className="bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 mb-4 font-semibold">
+              UPCOMING EVENT
             </Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900">Event Terbaik Bulan Ini</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto text-lg">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900 dark:text-white">Event Terbaik Bulan Ini</h2>
+            <p className="text-gray-600 dark:text-slate-300 max-w-2xl mx-auto text-lg">
               Jangan lewatkan event populer yang paling diminati peserta kami
             </p>
           </div>
@@ -290,14 +340,17 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
             {loading ? (
               Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className="bg-white rounded-lg border border-gray-200 p-6 animate-pulse">
-                  <div className="w-full h-48 bg-gray-200 rounded-lg mb-4"></div>
-                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+                <div
+                  key={index}
+                  className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 p-6 animate-pulse"
+                >
+                  <div className="w-full h-48 bg-gray-200 dark:bg-slate-800 rounded-lg mb-4"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-slate-800 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-slate-800 rounded w-3/4 mb-4"></div>
                   <div className="space-y-2">
-                    <div className="h-3 bg-gray-200 rounded"></div>
-                    <div className="h-3 bg-gray-200 rounded"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-slate-800 rounded"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-slate-800 rounded"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-slate-800 rounded w-1/2"></div>
                   </div>
                 </div>
               ))
@@ -305,15 +358,17 @@ export default function Home() {
               <div className="col-span-full text-center py-12">
                 <div className="text-red-500 mb-4">
                   <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-semibold">Gagal memuat event</p>
-                  <p className="text-sm text-gray-500 mt-2">{error}</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-slate-100">Gagal memuat event</p>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">{error}</p>
                 </div>
               </div>
             ) : events.length === 0 ? (
               <div className="col-span-full text-center py-12">
-                <Calendar className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg font-semibold text-gray-600">Belum ada event tersedia</p>
-                <p className="text-sm text-gray-500 mt-2">Event akan segera hadir, pantau terus ya!</p>
+                <Calendar className="h-16 w-16 mx-auto mb-4 text-gray-300 dark:text-slate-700" />
+                <p className="text-lg font-semibold text-gray-600 dark:text-slate-200">Belum ada event tersedia</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
+                  Event akan segera hadir, pantau terus ya!
+                </p>
               </div>
             ) : (
               events.map((event) => (
@@ -343,50 +398,25 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Trust Indicators */}
-      <section className="py-16 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <Badge className="bg-slate-100 text-slate-700 border-slate-200 mb-4 font-semibold">
-              Dipercaya Oleh
-            </Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900">Ribuan Peserta Setia</h2>
-            <p className="text-gray-600 text-lg">Bergabunglah dengan komunitas yang terus berkembang</p>
-          </div>
+      {/* Pricing Section */}
+      <PricingSection tiers={pricingTiers} className="bg-background dark:bg-black transition-colors" />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-medium hover:shadow-large transition-all duration-300">
-              <div className="flex justify-center mb-6">
-                <div className="w-16 h-16 bg-emerald-600 rounded-2xl flex items-center justify-center">
-                  <Shield className="h-8 w-8 text-white" />
-                </div>
-              </div>
-              <h4 className="font-bold text-gray-900 mb-3 text-xl">Keamanan Terjamin</h4>
-              <p className="text-gray-600">Data dan transaksi aman dengan enkripsi tingkat enterprise</p>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-medium hover:shadow-large transition-all duration-300">
-              <div className="flex justify-center mb-6">
-                <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center">
-                  <Zap className="h-8 w-8 text-white" />
-                </div>
-              </div>
-              <h4 className="font-bold text-gray-900 mb-3 text-xl">Proses Cepat</h4>
-              <p className="text-gray-600">Pendaftaran instant dan konfirmasi otomatis dalam hitungan detik</p>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-medium hover:shadow-large transition-all duration-300">
-              <div className="flex justify-center mb-6">
-                <div className="w-16 h-16 bg-rose-500 rounded-2xl flex items-center justify-center">
-                  <Star className="h-8 w-8 text-white" />
-                </div>
-              </div>
-              <h4 className="font-bold text-gray-900 mb-3 text-xl">Rating Tinggi</h4>
-              <p className="text-gray-600">4.9/5 rating dari ribuan peserta yang puas dengan layanan kami</p>
-            </div>
-          </div>
+      {/* FAQ Section */}
+      <section className="bg-background dark:bg-black py-16 transition-colors">
+        <div className="container mx-auto px-4 text-center">
+          <Badge className="mb-4 border-slate-200 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 font-semibold">
+            FREQUENTLY ASKED QUESTIONS
+          </Badge>
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+            Pertanyaan yang Paling Sering Kami Terima
+          </h2>
+          <p className="text-lg text-gray-600 dark:text-slate-300 max-w-3xl mx-auto">
+            Temukan jawaban seputar tiket, pembayaran, sponsor, hingga keamanan data dalam penyelenggaraan
+            event digital berskala besar.
+          </p>
         </div>
       </section>
+      <Feature197 features={faqFeatures} className="bg-background dark:bg-black pt-0 pb-12 transition-colors" />
 
       {/* Check-In Dialog */}
       <Dialog open={checkInDialogOpen} onOpenChange={setCheckInDialogOpen}>
@@ -395,8 +425,8 @@ export default function Home() {
             <DialogTitle>Isi Data Kehadiran</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="p-4 bg-teal-50 rounded-lg border border-teal-100">
-              <p className="text-sm text-teal-800">
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+              <p className="text-sm text-slate-800">
                 Masukkan kode token 10 digit yang telah dikirim ke email Anda untuk melakukan absensi.
               </p>
             </div>

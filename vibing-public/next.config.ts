@@ -32,6 +32,11 @@ const nextConfig: NextConfig = {
         port: '6000',
         pathname: '/uploads/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        pathname: '/**',
+      },
     ],
   },
 };

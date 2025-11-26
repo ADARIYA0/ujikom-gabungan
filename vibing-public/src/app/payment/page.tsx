@@ -8,7 +8,7 @@ import { useEvent } from '@/hooks/useEvents';
 import { useToast } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, CheckCircle2, XCircle, Clock, QrCode, ExternalLink, ArrowLeft, Calendar, MapPin, Users } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Clock, QrCode, ExternalLink, ArrowLeft, Calendar, MapPin, Users, Home, Search, BadgePercent, Contact } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { EventService } from '@/services/eventService';
 
@@ -75,11 +75,34 @@ function PaymentPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attendanceId, eventId, paymentIdParam]);
 
+  const headerItems = [
+    {
+      name: "Beranda",
+      link: "/",
+      icon: <Home className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Cari Kegiatan",
+      link: "/events",
+      icon: <Search className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Harga",
+      link: "/pricing",
+      icon: <BadgePercent className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Tentang Kami",
+      link: "/about",
+      icon: <Contact className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+  ];
+
   // Validation: Check if eventId, attendanceId, or paymentId exists
   if (!attendanceId && !eventId && !paymentIdParam) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header currentView="search" />
+        <Header headerItems={headerItems} />
         <div className="container mx-auto px-4 py-8">
           <Card className="max-w-2xl mx-auto">
             <CardContent className="p-8 text-center">
@@ -88,7 +111,7 @@ function PaymentPageContent() {
               <p className="text-gray-600 mb-6">
                 Event ID atau Attendance ID tidak ditemukan. Silakan daftar ulang untuk event.
               </p>
-              <Button onClick={() => router.push('/event')}>
+              <Button onClick={() => router.push('/events')}>
                 Kembali ke Daftar Event
               </Button>
             </CardContent>
@@ -102,11 +125,11 @@ function PaymentPageContent() {
   if (isLoadingPaymentStatus || (isCreating && !paymentIdParam)) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header currentView="search" />
+        <Header headerItems={headerItems} />
         <div className="container mx-auto px-4 py-8">
           <Card className="max-w-2xl mx-auto">
             <CardContent className="p-8 text-center">
-              <Loader2 className="h-16 w-16 text-teal-600 mx-auto mb-4 animate-spin" />
+              <Loader2 className="h-16 w-16 text-slate-600 mx-auto mb-4 animate-spin" />
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Mempersiapkan Pembayaran</h2>
               <p className="text-gray-600">Mohon tunggu sebentar...</p>
             </CardContent>
@@ -120,14 +143,14 @@ function PaymentPageContent() {
   if (error && !payment) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header currentView="search" />
+        <Header headerItems={headerItems} />
         <div className="container mx-auto px-4 py-8">
           <Card className="max-w-2xl mx-auto">
             <CardContent className="p-8 text-center">
               <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Gagal Membuat Pembayaran</h2>
               <p className="text-gray-600 mb-6">{error}</p>
-              <Button onClick={() => router.push('/event')}>
+              <Button onClick={() => router.push('/events')}>
                 Kembali ke Daftar Event
               </Button>
             </CardContent>
@@ -141,7 +164,7 @@ function PaymentPageContent() {
   if (isPaid) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header currentView="search" />
+        <Header headerItems={headerItems} />
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-2xl mx-auto space-y-6">
             <Card className="border-green-200 bg-green-50">
@@ -151,7 +174,7 @@ function PaymentPageContent() {
                 <p className="text-gray-600 mb-6">
                   Pembayaran Anda telah dikonfirmasi. Token event akan dikirim ke email Anda.
                 </p>
-                <Button onClick={() => router.push('/profile')} className="bg-teal-600 hover:bg-teal-700">
+                <Button onClick={() => router.push('/profile')} className="bg-slate-600 hover:bg-slate-700">
                   Lihat Event Saya
                 </Button>
               </CardContent>
@@ -166,7 +189,7 @@ function PaymentPageContent() {
   if (isExpired) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header currentView="search" />
+        <Header headerItems={headerItems} />
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-2xl mx-auto space-y-6">
             <Card className="border-red-200 bg-red-50">
@@ -176,7 +199,7 @@ function PaymentPageContent() {
                 <p className="text-gray-600 mb-6">
                   Waktu pembayaran telah habis. Silakan daftar ulang untuk event.
                 </p>
-                <Button onClick={() => router.push('/event')} className="bg-teal-600 hover:bg-teal-700">
+                <Button onClick={() => router.push('/events')} className="bg-slate-600 hover:bg-slate-700">
                   Kembali ke Daftar Event
                 </Button>
               </CardContent>
@@ -196,7 +219,7 @@ function PaymentPageContent() {
           {/* Back Button */}
           <Button
             variant="ghost"
-            onClick={() => router.push('/event')}
+            onClick={() => router.push('/events')}
             className="mb-4"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -233,21 +256,21 @@ function PaymentPageContent() {
                       </div>
                       <div className="space-y-2 pt-2 border-t">
                         <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Calendar className="h-4 w-4 text-teal-600" />
+                          <Calendar className="h-4 w-4 text-slate-600" />
                           <span>{EventService.formatEventDate(event.waktu_mulai)}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Clock className="h-4 w-4 text-teal-600" />
+                          <Clock className="h-4 w-4 text-slate-600" />
                           <span>{EventService.formatEventTime(event.waktu_mulai)} WIB</span>
                         </div>
                         {event.lokasi_kegiatan && (
                           <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <MapPin className="h-4 w-4 text-teal-600" />
+                            <MapPin className="h-4 w-4 text-slate-600" />
                             <span>{event.lokasi_kegiatan}</span>
                           </div>
                         )}
                         <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Users className="h-4 w-4 text-teal-600" />
+                          <Users className="h-4 w-4 text-slate-600" />
                           <span>Kapasitas: {event.kapasitas_peserta} peserta</span>
                         </div>
                       </div>
@@ -298,7 +321,7 @@ function PaymentPageContent() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-xl flex items-center gap-2">
-                    <QrCode className="h-6 w-6 text-teal-600" />
+                    <QrCode className="h-6 w-6 text-slate-600" />
                     Invoice Pembayaran
                   </CardTitle>
                 </CardHeader>
@@ -306,9 +329,9 @@ function PaymentPageContent() {
                   {/* Invoice Embed */}
                   {isPending && currentPayment?.invoiceUrl ? (
                     <div className="space-y-4">
-                      <div className="p-4 border-2 border-teal-200 rounded-lg bg-teal-50">
+                      <div className="p-4 border-2 border-slate-200 rounded-lg bg-slate-50">
                         <div className="flex items-center gap-3 mb-2">
-                          <div className="p-2 bg-teal-600 rounded-lg">
+                          <div className="p-2 bg-slate-600 rounded-lg">
                             <QrCode className="h-6 w-6 text-white" />
                           </div>
                           <div>
@@ -322,8 +345,8 @@ function PaymentPageContent() {
                       <div className="border-2 border-gray-200 rounded-lg overflow-hidden bg-white p-8 text-center">
                         <div className="space-y-4">
                           <div className="flex justify-center">
-                            <div className="p-4 bg-teal-100 rounded-full">
-                              <QrCode className="h-12 w-12 text-teal-600" />
+                            <div className="p-4 bg-slate-100 rounded-full">
+                              <QrCode className="h-12 w-12 text-slate-600" />
                             </div>
                           </div>
                           <div>
@@ -337,7 +360,7 @@ function PaymentPageContent() {
                           </div>
                           <Button
                             onClick={() => window.open(currentPayment.invoiceUrl!, '_blank')}
-                            className="w-full bg-teal-600 hover:bg-teal-700 text-white"
+                            className="w-full bg-slate-600 hover:bg-slate-700 text-white"
                             size="lg"
                           >
                             <ExternalLink className="h-5 w-5 mr-2" />
@@ -350,7 +373,7 @@ function PaymentPageContent() {
                       </div>
 
                       {isChecking && (
-                        <div className="flex items-center justify-center gap-2 text-sm text-teal-600">
+                        <div className="flex items-center justify-center gap-2 text-sm text-slate-600">
                           <Loader2 className="h-4 w-4 animate-spin" />
                           Memeriksa status pembayaran...
                         </div>
@@ -416,7 +439,7 @@ function PaymentPageContent() {
                     }
                   }}
                   disabled={isChecking}
-                  className="w-full bg-teal-600 hover:bg-teal-700 text-white"
+                  className="w-full bg-slate-600 hover:bg-slate-700 text-white"
                 >
                   {isChecking ? (
                     <>
@@ -458,7 +481,7 @@ function PaymentPageLoading() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
-        <Loader2 className="h-16 w-16 text-teal-600 mx-auto mb-4 animate-spin" />
+        <Loader2 className="h-16 w-16 text-slate-600 mx-auto mb-4 animate-spin" />
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Memuat Halaman Pembayaran</h2>
         <p className="text-gray-600">Mohon tunggu sebentar...</p>
       </div>

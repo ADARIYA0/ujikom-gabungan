@@ -6,7 +6,7 @@ import { PaymentService } from '@/services/paymentService';
 import { useToast } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, CheckCircle2, ArrowLeft, Calendar, Mail } from 'lucide-react';
+import { Loader2, CheckCircle2, ArrowLeft, Calendar, Mail, Home, Search, BadgePercent, Contact } from 'lucide-react';
 import { Header } from '@/components/Header';
 
 function PaymentSuccessContent() {
@@ -55,14 +55,37 @@ function PaymentSuccessContent() {
     fetchPaymentStatus();
   }, [paymentId]);
 
+  const headerItems = [
+    {
+      name: "Beranda",
+      link: "/",
+      icon: <Home className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Cari Kegiatan",
+      link: "/events",
+      icon: <Search className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Harga",
+      link: "/pricing",
+      icon: <BadgePercent className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Tentang Kami",
+      link: "/about",
+      icon: <Contact className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+  ];
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header currentView="search" />
+        <Header headerItems={headerItems} />
         <div className="container mx-auto px-4 py-8">
           <Card className="max-w-2xl mx-auto">
             <CardContent className="p-8 text-center">
-              <Loader2 className="h-16 w-16 text-teal-600 mx-auto mb-4 animate-spin" />
+              <Loader2 className="h-16 w-16 text-slate-600 mx-auto mb-4 animate-spin" />
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Memuat Status Pembayaran</h2>
               <p className="text-gray-600">Mohon tunggu sebentar...</p>
             </CardContent>
@@ -75,7 +98,7 @@ function PaymentSuccessContent() {
   if (error || !payment) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header currentView="search" />
+        <Header headerItems={headerItems} />
         <div className="container mx-auto px-4 py-8">
           <Card className="max-w-2xl mx-auto">
             <CardContent className="p-8 text-center">
@@ -85,7 +108,7 @@ function PaymentSuccessContent() {
                 <Button onClick={() => router.push('/payment')} variant="outline">
                   Kembali ke Halaman Pembayaran
                 </Button>
-                <Button onClick={() => router.push('/event')} className="bg-teal-600 hover:bg-teal-700">
+                <Button onClick={() => router.push('/events')} className="bg-slate-600 hover:bg-slate-700">
                   Kembali ke Daftar Event
                 </Button>
               </div>
@@ -136,7 +159,7 @@ function PaymentSuccessContent() {
               </div>
               {payment.paidAt && (
                 <div className="flex items-center gap-2 py-2">
-                  <Calendar className="h-4 w-4 text-teal-600" />
+                  <Calendar className="h-4 w-4 text-slate-600" />
                   <span className="text-gray-600">Waktu Pembayaran:</span>
                   <span className="font-medium text-gray-900">
                     {new Date(payment.paidAt).toLocaleString('id-ID', {
@@ -176,13 +199,13 @@ function PaymentSuccessContent() {
           <div className="flex flex-col sm:flex-row gap-4">
             <Button
               onClick={() => router.push('/profile')}
-              className="flex-1 bg-teal-600 hover:bg-teal-700 text-white"
+              className="flex-1 bg-slate-600 hover:bg-slate-700 text-white"
               size="lg"
             >
               Lihat Event Saya
             </Button>
             <Button
-              onClick={() => router.push('/event')}
+              onClick={() => router.push('/events')}
               variant="outline"
               className="flex-1"
               size="lg"
@@ -201,7 +224,7 @@ function PaymentSuccessLoading() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
-        <Loader2 className="h-16 w-16 text-teal-600 mx-auto mb-4 animate-spin" />
+        <Loader2 className="h-16 w-16 text-slate-600 mx-auto mb-4 animate-spin" />
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Memuat Halaman</h2>
         <p className="text-gray-600">Mohon tunggu sebentar...</p>
       </div>

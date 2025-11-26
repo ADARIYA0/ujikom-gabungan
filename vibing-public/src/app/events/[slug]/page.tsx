@@ -27,7 +27,11 @@ import {
   Phone,
   Mail,
   CreditCard,
-  Loader2
+  Loader2,
+  Home,
+  Search,
+  BadgePercent,
+  Contact
 } from 'lucide-react';
 import { useEventBySlug, useEventRegistration, useEventCheckIn } from '@/hooks/useEvents';
 import { useAuth } from '@/contexts/AuthContext';
@@ -56,12 +60,35 @@ export default function EventDetailPage() {
   const [isLoadingPayment, setIsLoadingPayment] = useState(false);
 
   const fromPage = searchParams.get('from') || 'home';
-  const currentView = fromPage === 'event' ? 'search' : 'home';
+  const currentView = fromPage === 'events' ? 'search' : 'home';
+
+  const headerItems = [
+    {
+      name: "Beranda",
+      link: "/",
+      icon: <Home className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Cari Kegiatan",
+      link: "/events",
+      icon: <Search className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Harga",
+      link: "/pricing",
+      icon: <BadgePercent className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Tentang Kami",
+      link: "/about",
+      icon: <Contact className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+  ];
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header currentView={currentView} />
+        <Header headerItems={headerItems} />
         <div className="container mx-auto px-4 py-8">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
@@ -80,7 +107,7 @@ export default function EventDetailPage() {
   if (error || !event) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header currentView={currentView} />
+        <Header headerItems={headerItems} />
         <div className="container mx-auto px-4 py-8">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">
@@ -89,8 +116,8 @@ export default function EventDetailPage() {
             <p className="text-gray-600 mb-6">
               Event dengan slug "{slug}" tidak dapat ditemukan.
             </p>
-            <Button onClick={() => router.push(fromPage === 'event' ? '/event' : '/')}>
-              Kembali ke {fromPage === 'event' ? 'Daftar Event' : 'Beranda'}
+            <Button onClick={() => router.push(fromPage === 'events' ? '/events' : '/')}>
+              Kembali ke {fromPage === 'events' ? 'Daftar Event' : 'Beranda'}
             </Button>
           </div>
         </div>
@@ -399,7 +426,7 @@ export default function EventDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-4 bg-teal-50 rounded-xl border border-teal-100">
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
                   <div className="text-center">
                     <div className="text-3xl font-bold text-primary mb-1">
                       {EventService.formatPrice(event.harga)}
@@ -413,8 +440,8 @@ export default function EventDetailPage() {
                 {!isLoggedIn ? (
                   <div className="space-y-3">
                     <Button 
-                      className="w-full bg-primary hover:bg-teal-700 text-white font-semibold py-3"
-                      onClick={() => router.push(`/login?returnUrl=${encodeURIComponent(`/event/${event.slug}?from=${fromPage}`)}`)}
+                      className="w-full bg-primary hover:bg-slate-700 text-white font-semibold py-3"
+                      onClick={() => router.push(`/login?returnUrl=${encodeURIComponent(`/events/${event.slug}?from=${fromPage}`)}`)}
                     >
                       Masuk untuk Mendaftar
                     </Button>
@@ -431,7 +458,7 @@ export default function EventDetailPage() {
                             onClick={handleViewPaymentStatus}
                             disabled={isLoadingPayment}
                             variant="outline"
-                            className="w-full border-teal-600 text-teal-600 hover:bg-teal-50 font-semibold py-3"
+                            className="w-full border-slate-600 text-slate-600 hover:bg-slate-50 font-semibold py-3"
                           >
                             {isLoadingPayment ? (
                               <>
@@ -469,11 +496,11 @@ export default function EventDetailPage() {
                               <DialogTitle>Isi Data Kehadiran</DialogTitle>
                             </DialogHeader>
                             <div className="space-y-4">
-                              <div className="p-4 bg-teal-50 rounded-lg border border-teal-100">
-                                <p className="text-sm text-teal-800">
+                              <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                                <p className="text-sm text-slate-800">
                                   Masukkan kode token 10 digit yang telah dikirim ke email Anda untuk melakukan absensi.
                                 </p>
-                                <p className="text-xs text-teal-700 mt-2">
+                                <p className="text-xs text-slate-700 mt-2">
                                   Event dimulai: <strong>{EventService.formatEventStartTime(event)} WIB</strong>
                                 </p>
                               </div>
@@ -520,7 +547,7 @@ export default function EventDetailPage() {
                         <Button 
                           onClick={handleRegister}
                           disabled={isRegistering}
-                          className="w-full bg-primary hover:bg-teal-700 text-white font-semibold py-3"
+                          className="w-full bg-primary hover:bg-slate-700 text-white font-semibold py-3"
                         >
                           <Ticket className="h-4 w-4 mr-2" />
                           {isRegistering ? 'Memproses...' : 'Bayar Sekarang'}
@@ -529,7 +556,7 @@ export default function EventDetailPage() {
                         // For free events, show confirmation dialog
                         <Dialog>
                           <DialogTrigger asChild>
-                            <Button className="w-full bg-primary hover:bg-teal-700 text-white font-semibold py-3">
+                            <Button className="w-full bg-primary hover:bg-slate-700 text-white font-semibold py-3">
                               <Ticket className="h-4 w-4 mr-2" />
                               Daftar Sekarang
                             </Button>
@@ -539,9 +566,9 @@ export default function EventDetailPage() {
                               <DialogTitle>Konfirmasi Pendaftaran</DialogTitle>
                             </DialogHeader>
                             <div className="space-y-4">
-                              <div className="p-4 bg-teal-50 rounded-lg">
-                                <h4 className="font-medium text-teal-900 mb-1">{event.judul_kegiatan}</h4>
-                                <p className="text-sm text-teal-700">{EventService.formatEventDate(event.waktu_mulai)} • {EventService.formatEventTime(event.waktu_mulai)} WIB</p>
+                              <div className="p-4 bg-slate-50 rounded-lg">
+                                <h4 className="font-medium text-slate-900 mb-1">{event.judul_kegiatan}</h4>
+                                <p className="text-sm text-slate-700">{EventService.formatEventDate(event.waktu_mulai)} • {EventService.formatEventTime(event.waktu_mulai)} WIB</p>
                               </div>
                               
                               <div className="space-y-2">
@@ -568,7 +595,7 @@ export default function EventDetailPage() {
                               <Button
                                 onClick={handleRegister}
                                 disabled={isRegistering}
-                                className="w-full bg-primary hover:bg-teal-700"
+                                className="w-full bg-primary hover:bg-slate-700"
                               >
                                 {isRegistering ? 'Mendaftar...' : 'Konfirmasi Pendaftaran'}
                               </Button>
@@ -619,7 +646,7 @@ export default function EventDetailPage() {
                       setShowSuccessDialog(false);
                       refetch();
                     }}
-                    className="w-full bg-primary hover:bg-teal-700"
+                    className="w-full bg-primary hover:bg-slate-700"
                   >
                     Tutup
                   </Button>

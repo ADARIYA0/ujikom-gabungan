@@ -99,10 +99,10 @@ function Toast({ id, title, description, variant = 'default', onDismiss }: Toast
       description: 'text-gray-600',
     },
     success: {
-      container: 'bg-teal-50 border-teal-200 shadow-lg',
-      icon: 'text-teal-600',
-      title: 'text-teal-900',
-      description: 'text-teal-700',
+      container: 'bg-slate-50 border-slate-200 shadow-lg',
+      icon: 'text-slate-600',
+      title: 'text-slate-900',
+      description: 'text-slate-700',
     },
     error: {
       container: 'bg-red-50 border-red-200 shadow-lg',

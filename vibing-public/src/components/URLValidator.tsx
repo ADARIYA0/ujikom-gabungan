@@ -24,14 +24,14 @@ const URLValidator = ({ children }: URLValidatorProps) => {
                 '/dashboard': [],
                 '/profile': [],
                 '/attendance': [],
-                '/event': ['from'],
+                '/events': ['from'],
                 '/payment': ['event_id', 'attendance_id', 'payment_id'],
                 '/payment/success': ['payment_id'],
                 '/not-found': []
             };
 
-            // Handle dynamic route /event/[slug]
-            if (pathname.startsWith('/event/')) {
+            // Handle dynamic route /events/[slug]
+            if (pathname.startsWith('/events/')) {
                 const allowedParams = ['from'];
                 const allParams = Array.from(searchParams.keys());
                 const hasInvalidParams = allParams.some(param => !allowedParams.includes(param));
