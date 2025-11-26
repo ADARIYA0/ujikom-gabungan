@@ -34,11 +34,10 @@ export function EventCard({ event, onViewDetails, onRegister, onCheckIn, isLogge
   const isPaidEvent = event.harga && (typeof event.harga === 'number' ? event.harga > 0 : parseFloat(String(event.harga)) > 0);
 
   return (
-    <Card className={`group transition-all duration-300 overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border shadow-medium flex flex-col h-full relative ${
-      isEventPassed 
-        ? 'border-gray-700 opacity-75 cursor-not-allowed' 
+    <Card className={`group transition-all duration-300 overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border shadow-medium flex flex-col h-full relative ${isEventPassed
+        ? 'border-gray-700 opacity-75 cursor-not-allowed'
         : 'border-gray-700/50 hover:shadow-2xl hover:-translate-y-2 hover:border-primary/60 hover:shadow-primary/30'
-    }`}>
+      }`}>
       {/* Glow effect on hover */}
       {!isEventPassed && (
         <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-slate-500/0 to-primary/0 group-hover:from-primary/10 group-hover:via-slate-500/15 group-hover:to-primary/10 rounded-lg transition-all duration-300 pointer-events-none"></div>
@@ -78,37 +77,37 @@ export function EventCard({ event, onViewDetails, onRegister, onCheckIn, isLogge
         )}
         <div className={`absolute inset-0 transition-colors duration-300 ${isEventPassed ? 'bg-black/0' : 'bg-black/0 group-hover:bg-black/5'}`}></div>
       </div>
-      
-      <CardContent className="p-6 flex-1 flex flex-col">
-        <h3 className="font-bold mb-3 line-clamp-2 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-primary group-hover:via-slate-400 group-hover:to-primary transition-all duration-300 text-white leading-tight text-lg">
+
+      <CardContent className="p-6 flex-1 flex flex-col bg-[#f8fafc] dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+        <h3 className="font-bold mb-3 line-clamp-2 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-primary group-hover:via-slate-400 group-hover:to-primary transition-all duration-300 text-slate-800 dark:text-white leading-tight text-lg">
           {event.judul_kegiatan}
         </h3>
-        <p className="text-gray-400 mb-5 line-clamp-2 leading-relaxed group-hover:text-gray-300 transition-colors">
+        <p className="text-slate-600 dark:text-gray-400 mb-5 line-clamp-2 leading-relaxed group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors">
           {event.deskripsi_kegiatan}
         </p>
-        
+
         <div className="space-y-3 mb-5">
-          <div className="flex items-center text-sm text-gray-400 group-hover:text-gray-300 transition-colors">
+          <div className="flex items-center text-sm text-slate-500 dark:text-gray-400 group-hover:text-slate-600 dark:group-hover:text-gray-300 transition-colors">
             <div className="p-1.5 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors mr-2">
-              <Calendar className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+              <Calendar className="h-3.5 w-3.5 text-slate-500 dark:text-primary flex-shrink-0" />
             </div>
             <span className="text-gray-300 font-medium">{EventService.formatEventDate(event.waktu_mulai)}</span>
           </div>
-          <div className="flex items-center text-sm text-gray-400 group-hover:text-gray-300 transition-colors">
+          <div className="flex items-center text-sm text-slate-500 dark:text-gray-400 group-hover:text-slate-600 dark:group-hover:text-gray-300 transition-colors">
             <div className="p-1.5 rounded-lg bg-slate-500/10 group-hover:bg-slate-500/20 transition-colors mr-2">
-              <Clock className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+              <Clock className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 flex-shrink-0" />
             </div>
             <span className="text-gray-300 font-medium">{EventService.formatEventTime(event.waktu_mulai)} WIB</span>
           </div>
-          <div className="flex items-center text-sm text-gray-400 group-hover:text-gray-300 transition-colors">
+          <div className="flex items-center text-sm text-slate-500 dark:text-gray-400 group-hover:text-slate-600 dark:group-hover:text-gray-300 transition-colors">
             <div className="p-1.5 rounded-lg bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors mr-2">
-              <MapPin className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
+              <MapPin className="h-3.5 w-3.5 text-slate-500 dark:text-blue-400 flex-shrink-0" />
             </div>
             <span className="text-gray-300 line-clamp-1 font-medium">{event.lokasi_kegiatan}</span>
           </div>
-          <div className="flex items-center text-sm text-gray-400 group-hover:text-gray-300 transition-colors">
+          <div className="flex items-center text-sm text-slate-500 dark:text-gray-400 group-hover:text-slate-600 dark:group-hover:text-gray-300 transition-colors">
             <div className="p-1.5 rounded-lg bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors mr-2">
-              <Users className="h-3.5 w-3.5 text-purple-400 flex-shrink-0" />
+              <Users className="h-3.5 w-3.5 text-slate-500 dark:text-purple-400 flex-shrink-0" />
             </div>
             <span className="text-gray-300 font-medium">{event.attendee_count} / {event.kapasitas_peserta} peserta</span>
           </div>
@@ -130,39 +129,42 @@ export function EventCard({ event, onViewDetails, onRegister, onCheckIn, isLogge
         </div>
       </CardContent>
 
-      <CardFooter className="p-6 pt-0 bg-gradient-to-br from-gray-800/60 via-gray-800/40 to-gray-900/60">
+      <CardFooter className="p-6 pt-0 bg-[#f8fafc] dark:bg-gradient-to-br dark:from-gray-800 dark:via-gray-800 dark:to-gray-900">
         <div className="w-full grid grid-cols-2 gap-3">
           <Button
             variant="outline"
+            size="lg"
             onClick={handleViewDetails}
-            className="h-11 border-gray-600/50 text-gray-300 hover:bg-gradient-to-r hover:from-gray-800 hover:to-gray-700 hover:text-white hover:border-primary/50 transition-all duration-300 font-semibold bg-gray-900/50 backdrop-blur-sm hover:shadow-lg hover:shadow-primary/10"
           >
             Detail
           </Button>
           {isLoggedIn ? (
             isRegistered ? (
               <Button
+                size="lg"
+                variant="success"
                 onClick={() => onCheckIn ? onCheckIn(event.id) : onViewDetails(event.slug)}
                 disabled={attendanceStatus === 'hadir' || isEventPassed || !isEventStarted}
-                className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-gray-300 disabled:text-gray-500 transition-colors font-semibold"
                 title={!isEventStarted ? `Check-in dapat dilakukan mulai ${EventService.formatEventStartTime(event)} WIB` : undefined}
               >
                 {attendanceStatus === 'hadir' ? 'Sudah Hadir' : isEventPassed ? 'Sudah Lewat' : !isEventStarted ? 'Belum Waktunya' : 'Isi Data Kehadiran'}
               </Button>
             ) : (
               <Button
+                size="lg"
+                variant={isPaidEvent ? 'default' : 'default'}
                 onClick={() => onRegister(event.id)}
                 disabled={isEventFull || isEventPassed || isEventStarted}
-                className="h-11 bg-primary hover:bg-slate-700 text-white disabled:bg-gray-300 disabled:text-gray-500 transition-colors font-semibold"
               >
                 {isEventPassed ? 'Event Sudah Berlalu' : isEventStarted ? 'Pendaftaran Ditutup' : isEventFull ? 'Penuh' : isPaidEvent ? 'Bayar' : 'Daftar'}
               </Button>
             )
           ) : (
             <Button
+              size="lg"
+              variant="outline"
               onClick={() => router.push(`/login?returnUrl=${encodeURIComponent(`/events/${event.slug}`)}`)}
               disabled={isEventStarted || isEventPassed}
-              className="h-11 bg-primary hover:bg-slate-700 text-white disabled:bg-gray-300 disabled:text-gray-500 transition-colors font-semibold"
             >
               {isEventPassed ? 'Event Sudah Berlalu' : isEventStarted ? 'Pendaftaran Ditutup' : 'Login Dulu'}
             </Button>

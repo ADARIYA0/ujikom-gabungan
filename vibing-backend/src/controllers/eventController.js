@@ -17,7 +17,7 @@ exports.getAllEvent = async (req, res) => {
         const limit = Math.min(parseInt(req.query.limit) || 10, 100);
         const offset = (page - 1) * limit;
 
-        logger.info(`GET /event?page=${page}&limit=${limit} accessed`);
+        logger.info(`GET /events?page=${page}&limit=${limit} accessed`);
 
         const qb = eventRepo().createQueryBuilder('kegiatan')
             .leftJoinAndSelect('kegiatan.category', 'category')
@@ -166,7 +166,7 @@ exports.updateEvent = async (req, res) => {
             eventId,
             files: Object.keys(req.files || {})
         };
-        logger.info('PUT /event/:id update request', meta);
+        logger.info('PUT /events/:id update request', meta);
 
         const existingEvent = await eventRepo().findOne({ where: { id: eventId } });
         if (!existingEvent) {
@@ -324,7 +324,7 @@ exports.deleteEvent = async (req, res) => {
             return res.status(400).json({ message: 'Invalid event ID' });
         }
 
-        logger.info('DELETE /event/:id delete request', { eventId, ip: req.ip });
+        logger.info('DELETE /events/:id delete request', { eventId, ip: req.ip });
 
         const event = await eventRepo().findOne({ where: { id: eventId } });
         if (!event) {
@@ -377,7 +377,7 @@ exports.deleteEvent = async (req, res) => {
 exports.getEventBySlug = async (req, res) => {
     try {
         const { slug } = req.params;
-        logger.info(`GET /event/slug/${slug} accessed`);
+        logger.info(`GET /events/slug/${slug} accessed`);
 
         const ev = await eventRepo().findOne({
             where: { slug },
@@ -472,6 +472,96 @@ exports.getEventBySlug = async (req, res) => {
     }
 };
 
+/**
+ * Export event attendance summary for a given year and optional event IDs
+ * Returns JSON with per-event checked-in counts and aggregated totals
+ */
+exports.exportEventAttendanceSummary = async (req, res) => {
+    try {
+        // Only admin route guards applied in router
+        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+        const eventIdsParam = req.query.eventIds || null; // comma separated ids
+
+        const start = new Date(year, 0, 1, 0, 0, 0);
+        const end = new Date(year, 11, 31, 23, 59, 59);
+
+        const qb = eventRepo().createQueryBuilder('kegiatan')
+            .leftJoinAndSelect('kegiatan.category', 'category')
+            .where('kegiatan.waktu_mulai BETWEEN :start AND :end', { start, end })
+            .orderBy('kegiatan.waktu_mulai', 'ASC');
+
+        let ids = [];
+        if (eventIdsParam) {
+            ids = eventIdsParam.split(',').map(i => parseInt(i, 10)).filter(Boolean);
+            if (ids.length) {
+                qb.andWhere('kegiatan.id IN (:...ids)', { ids });
+            }
+        }
+
+        const events = await qb.getMany();
+
+        // For each event, compute checked-in counts (status_absen = 'hadir')
+        const results = [];
+        let totalCheckedIn = 0;
+        const eventIdList = [];
+
+        for (const ev of events) {
+            const checkedInCount = await attendanceRepo()
+                .createQueryBuilder('a')
+                .where('a.event = :eventId', { eventId: ev.id })
+                .andWhere('a.status_absen = :status', { status: 'hadir' })
+                .getCount();
+
+            const totalRegistered = await attendanceRepo()
+                .createQueryBuilder('a')
+                .where('a.event = :eventId', { eventId: ev.id })
+                .getCount();
+
+            results.push({
+                id: ev.id,
+                judul_kegiatan: ev.judul_kegiatan,
+                slug: ev.slug,
+                waktu_mulai: ev.waktu_mulai,
+                waktu_berakhir: ev.waktu_berakhir,
+                kapasitas_peserta: ev.kapasitas_peserta,
+                harga: ev.harga,
+                kategori: ev.category ? { id: ev.category.id, nama_kategori: ev.category.nama_kategori, slug: ev.category.slug } : null,
+                attendee_count: totalRegistered,
+                checked_in_count: checkedInCount
+            });
+
+            totalCheckedIn += checkedInCount;
+            eventIdList.push(ev.id);
+        }
+
+        // Unique users who checked in across selected events
+        let uniqueCheckedInUsers = 0;
+        if (eventIdList.length) {
+            const raw = await attendanceRepo()
+                .createQueryBuilder('a')
+                .select('COUNT(DISTINCT a.user)', 'uniqueCount')
+                .where('a.event IN (:...ids)', { ids: eventIdList })
+                .andWhere('a.status_absen = :status', { status: 'hadir' })
+                .getRawOne();
+
+            uniqueCheckedInUsers = raw ? parseInt(raw.uniqueCount, 10) || 0 : 0;
+        }
+
+        const response = {
+            year,
+            total_events: events.length,
+            total_checked_in: totalCheckedIn,
+            unique_checked_in_users: uniqueCheckedInUsers,
+            events: results
+        };
+
+        return res.json(response);
+    } catch (error) {
+        logger.error(`exportEventAttendanceSummary error: ${error}`, { stack: error.stack });
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 exports.updateEvent = async (req, res) => {
     try {
         const eventId = parseInt(req.params.id, 10);
@@ -485,7 +575,7 @@ exports.updateEvent = async (req, res) => {
             eventId,
             files: Object.keys(req.files || {})
         };
-        logger.info('PUT /event/:id update request', meta);
+        logger.info('PUT /events/:id update request', meta);
 
         const existingEvent = await eventRepo().findOne({ where: { id: eventId } });
         if (!existingEvent) {
@@ -643,7 +733,7 @@ exports.deleteEvent = async (req, res) => {
             return res.status(400).json({ message: 'Invalid event ID' });
         }
 
-        logger.info('DELETE /event/:id delete request', { eventId, ip: req.ip });
+        logger.info('DELETE /events/:id delete request', { eventId, ip: req.ip });
 
         const event = await eventRepo().findOne({ where: { id: eventId } });
         if (!event) {
@@ -696,7 +786,7 @@ exports.deleteEvent = async (req, res) => {
 exports.getEventById = async (req, res) => {
     try {
         const id = parseInt(req.params.id);
-        logger.info(`GET /event/${id} accessed`);
+        logger.info(`GET /events/${id} accessed`);
 
         const ev = await eventRepo().findOne({
             where: { id },
@@ -803,7 +893,7 @@ exports.updateEvent = async (req, res) => {
             eventId,
             files: Object.keys(req.files || {})
         };
-        logger.info('PUT /event/:id update request', meta);
+        logger.info('PUT /events/:id update request', meta);
 
         const existingEvent = await eventRepo().findOne({ where: { id: eventId } });
         if (!existingEvent) {
@@ -961,7 +1051,7 @@ exports.deleteEvent = async (req, res) => {
             return res.status(400).json({ message: 'Invalid event ID' });
         }
 
-        logger.info('DELETE /event/:id delete request', { eventId, ip: req.ip });
+        logger.info('DELETE /events/:id delete request', { eventId, ip: req.ip });
 
         const event = await eventRepo().findOne({ where: { id: eventId } });
         if (!event) {
@@ -1018,7 +1108,7 @@ exports.createEvent = async (req, res) => {
             userAgent: req.get('User-Agent'),
             files: Object.keys(req.files || {})
         };
-        logger.info('POST /event create request', meta);
+        logger.info('POST /events create request', meta);
 
         const {
             judul_kegiatan,
@@ -1200,7 +1290,7 @@ exports.updateEvent = async (req, res) => {
             eventId,
             files: Object.keys(req.files || {})
         };
-        logger.info('PUT /event/:id update request', meta);
+        logger.info('PUT /events/:id update request', meta);
 
         const existingEvent = await eventRepo().findOne({ where: { id: eventId } });
         if (!existingEvent) {
@@ -1358,7 +1448,7 @@ exports.deleteEvent = async (req, res) => {
             return res.status(400).json({ message: 'Invalid event ID' });
         }
 
-        logger.info('DELETE /event/:id delete request', { eventId, ip: req.ip });
+        logger.info('DELETE /events/:id delete request', { eventId, ip: req.ip });
 
         const event = await eventRepo().findOne({ where: { id: eventId } });
         if (!event) {
@@ -1413,7 +1503,7 @@ exports.registerEvent = async (req, res) => {
         const userId = req.user?.id;
         const eventId = parseInt(req.params.id, 10);
 
-        logger.info(`POST /event/${eventId}/register by user=${userId}`);
+        logger.info(`POST /events/${eventId}/register by user=${userId}`);
 
         const ev = await eventRepo().findOne({ where: { id: eventId } });
         if (!ev) {
@@ -1578,7 +1668,7 @@ exports.updateEvent = async (req, res) => {
             eventId,
             files: Object.keys(req.files || {})
         };
-        logger.info('PUT /event/:id update request', meta);
+        logger.info('PUT /events/:id update request', meta);
 
         const existingEvent = await eventRepo().findOne({ where: { id: eventId } });
         if (!existingEvent) {
@@ -1736,7 +1826,7 @@ exports.deleteEvent = async (req, res) => {
             return res.status(400).json({ message: 'Invalid event ID' });
         }
 
-        logger.info('DELETE /event/:id delete request', { eventId, ip: req.ip });
+        logger.info('DELETE /events/:id delete request', { eventId, ip: req.ip });
 
         const event = await eventRepo().findOne({ where: { id: eventId } });
         if (!event) {
@@ -1792,7 +1882,7 @@ exports.checkInEvent = async (req, res) => {
         const eventId = parseInt(req.params.id, 10);
         const { token } = req.body;
 
-        logger.info(`POST /event/${eventId}/checkin by user=${userId}`);
+        logger.info(`POST /events/${eventId}/checkin by user=${userId}`);
 
         if (!token) return res.status(400).json({ message: 'Token diperlukan' });
 
@@ -1875,7 +1965,7 @@ exports.updateEvent = async (req, res) => {
             eventId,
             files: Object.keys(req.files || {})
         };
-        logger.info('PUT /event/:id update request', meta);
+        logger.info('PUT /events/:id update request', meta);
 
         const existingEvent = await eventRepo().findOne({ where: { id: eventId } });
         if (!existingEvent) {
@@ -2033,7 +2123,7 @@ exports.deleteEvent = async (req, res) => {
             return res.status(400).json({ message: 'Invalid event ID' });
         }
 
-        logger.info('DELETE /event/:id delete request', { eventId, ip: req.ip });
+        logger.info('DELETE /events/:id delete request', { eventId, ip: req.ip });
 
         const event = await eventRepo().findOne({ where: { id: eventId } });
         if (!event) {

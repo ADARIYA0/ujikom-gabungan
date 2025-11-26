@@ -15,17 +15,11 @@ import {
   Calendar, 
   MapPin, 
   Clock, 
-  Users, 
-  Star, 
-  Share2, 
-  Heart,
+  Users,
   ArrowLeft,
   Check,
   AlertCircle,
   Ticket,
-  Globe,
-  Phone,
-  Mail,
   CreditCard,
   Loader2,
   Home,
@@ -37,7 +31,6 @@ import { useEventBySlug, useEventRegistration, useEventCheckIn } from '@/hooks/u
 import { useAuth } from '@/contexts/AuthContext';
 import { EventService } from '@/services/eventService';
 import { PaymentService } from '@/services/paymentService';
-import { Event, User } from '@/types';
 import { useToast } from '@/components/ui/toast';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
 
@@ -45,7 +38,7 @@ export default function EventDetailPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isLoggedIn } = useAuth();
+  const { isLoggedIn } = useAuth();
   const slug = params.slug as string;
   const { event, loading, error, refetch } = useEventBySlug(slug);
   const { registerEvent, isRegistering } = useEventRegistration();
@@ -53,7 +46,6 @@ export default function EventDetailPage() {
   const { toast } = useToast();
   const [registrationToken, setRegistrationToken] = useState('');
   const [checkInToken, setCheckInToken] = useState('');
-  const [isFavorited, setIsFavorited] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -61,6 +53,20 @@ export default function EventDetailPage() {
 
   const fromPage = searchParams.get('from') || 'home';
   const currentView = fromPage === 'events' ? 'search' : 'home';
+
+  // Hitung durasi event
+  const calculateEventDuration = () => {
+    if (!event?.waktu_mulai || !event?.waktu_berakhir) return '0 Jam';
+    const start = new Date(event.waktu_mulai);
+    const end = new Date(event.waktu_berakhir);
+    const durationMs = end.getTime() - start.getTime();
+    const durationHours = Math.round(durationMs / (1000 * 60 * 60));
+    if (durationHours === 0) {
+      const durationMinutes = Math.round(durationMs / (1000 * 60));
+      return `${durationMinutes} Menit`;
+    }
+    return `${durationHours} Jam`;
+  };
 
   const headerItems = [
     {
@@ -148,10 +154,8 @@ export default function EventDetailPage() {
       // If payment is required, redirect to payment page immediately
       if (result.data?.requiresPayment) {
         // Don't show toast or dialog, redirect immediately
-        // Use eventId if available (new flow), otherwise use attendanceId (backward compatibility)
-        const paymentParam = result.data.eventId 
-          ? `event_id=${result.data.eventId}` 
-          : `attendance_id=${result.data.attendanceId}`;
+        // Use event.id for payment
+        const paymentParam = `event_id=${event.id}`;
         router.push(`/payment?${paymentParam}`);
         return;
       }
@@ -261,7 +265,7 @@ export default function EventDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header currentView={currentView} />
+      <Header />
       
       <div className="bg-gray-50">
         <div className="container mx-auto px-4 py-4">
@@ -274,21 +278,7 @@ export default function EventDetailPage() {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Kembali
             </Button>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsFavorited(!isFavorited)}
-                className={isFavorited ? 'text-red-600 border-red-200' : ''}
-              >
-                <Heart className={`h-4 w-4 mr-1.5 ${isFavorited ? 'fill-current' : ''}`} />
-                {isFavorited ? 'Tersimpan' : 'Simpan'}
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleShare}>
-                <Share2 className="h-4 w-4 mr-1.5" />
-                Bagikan
-              </Button>
-            </div>
+            {/* Tombol Simpan dan Bagikan dihapus */}
           </div>
         </div>
       </div>
@@ -328,17 +318,6 @@ export default function EventDetailPage() {
 
             <Card className="border-0 shadow-medium">
               <CardHeader className="pb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center text-yellow-500">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="h-4 w-4 fill-current" />
-                      ))}
-                    </div>
-                    <span className="text-sm text-gray-600">(4.9 dari 250 ulasan)</span>
-                  </div>
-                  <span className="text-2xl font-bold text-primary">{EventService.formatPrice(event.harga)}</span>
-                </div>
                 <CardTitle className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
                   {event.judul_kegiatan}
                 </CardTitle>
@@ -349,7 +328,7 @@ export default function EventDetailPage() {
                     <Calendar className="h-5 w-5 mr-3 text-primary flex-shrink-0" />
                     <div>
                       <div className="font-medium text-gray-900">{EventService.formatEventDate(event.waktu_mulai)}</div>
-                      <div className="text-sm">{EventService.formatEventTime(event.waktu_mulai)} WIB</div>
+                      <div className="text-sm">{EventService.formatEventTime(event.waktu_mulai)} - {EventService.formatEventTime(event.waktu_berakhir)} WIB</div>
                     </div>
                   </div>
                   <div className="flex items-center text-gray-600">
@@ -369,7 +348,7 @@ export default function EventDetailPage() {
                   <div className="flex items-center text-gray-600">
                     <Clock className="h-5 w-5 mr-3 text-primary flex-shrink-0" />
                     <div>
-                      <div className="font-medium text-gray-900">6 Jam</div>
+                      <div className="font-medium text-gray-900">{calculateEventDuration()}</div>
                       <div className="text-sm">Durasi event</div>
                     </div>
                   </div>
@@ -389,24 +368,7 @@ export default function EventDetailPage() {
                   </p>
                 </div>
 
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-3">Yang Akan Anda Dapatkan</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {[
-                      'Sertifikat resmi kehadiran',
-                      'Materi presentasi lengkap',
-                      'Networking session eksklusif',
-                      'Konsumsi dan coffee break',
-                      'Akses ke komunitas alumni',
-                      'Follow-up session online'
-                    ].map((benefit, index) => (
-                      <div key={index} className="flex items-center">
-                        <Check className="h-4 w-4 text-emerald-600 mr-2 flex-shrink-0" />
-                        <span className="text-gray-700 text-sm">{benefit}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                {/* Section Yang Akan Anda Dapatkan dihapus */}
               </CardContent>
             </Card>
           </div>
@@ -428,12 +390,19 @@ export default function EventDetailPage() {
               <CardContent className="space-y-4">
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-primary mb-1">
-                      {EventService.formatPrice(event.harga)}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {event.harga === 0 ? 'Event gratis terbatas' : 'Termasuk semua fasilitas'}
-                    </div>
+                    {event.harga && (typeof event.harga === 'number' ? event.harga > 0 : parseFloat(String(event.harga)) > 0) ? (
+                      <>
+                        <div className="text-3xl font-bold text-primary mb-1">
+                          {EventService.formatPrice(event.harga)}
+                        </div>
+                        <div className="text-sm text-gray-600">Termasuk semua fasilitas</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-3xl font-bold text-primary mb-1">Gratis</div>
+                        <div className="text-sm text-gray-600">Event gratis terbatas</div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -474,19 +443,19 @@ export default function EventDetailPage() {
                           </Button>
                         )}
                         {attendanceStatus === 'hadir' ? (
-                        <Button disabled className="w-full bg-emerald-600 text-white font-semibold py-3">
+                        <Button disabled variant="success" className="w-full">
                           <Check className="h-4 w-4 mr-2" />
                           Sudah Hadir
                         </Button>
                       ) : !isEventStarted ? (
-                        <Button disabled className="w-full bg-gray-400 text-white font-semibold py-3">
+                        <Button disabled variant="outline" className="w-full">
                           <Clock className="h-4 w-4 mr-2" />
                           Belum Waktunya Check-in
                         </Button>
                       ) : (
                         <Dialog open={showCheckInDialog} onOpenChange={setShowCheckInDialog}>
                           <DialogTrigger asChild>
-                            <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3">
+                            <Button variant="success" className="w-full">
                               <Ticket className="h-4 w-4 mr-2" />
                               Isi Data Kehadiran
                             </Button>
@@ -532,7 +501,8 @@ export default function EventDetailPage() {
                               <Button
                                 onClick={handleCheckIn}
                                 disabled={isCheckingIn || !checkInToken.trim()}
-                                className="w-full bg-emerald-600 hover:bg-emerald-700"
+                                variant="success"
+                                className="w-full"
                               >
                                 {isCheckingIn ? 'Memproses...' : 'Konfirmasi Absensi'}
                               </Button>
@@ -547,7 +517,8 @@ export default function EventDetailPage() {
                         <Button 
                           onClick={handleRegister}
                           disabled={isRegistering}
-                          className="w-full bg-primary hover:bg-slate-700 text-white font-semibold py-3"
+                          variant="default"
+                          className="w-full"
                         >
                           <Ticket className="h-4 w-4 mr-2" />
                           {isRegistering ? 'Memproses...' : 'Bayar Sekarang'}
@@ -556,7 +527,7 @@ export default function EventDetailPage() {
                         // For free events, show confirmation dialog
                         <Dialog>
                           <DialogTrigger asChild>
-                            <Button className="w-full bg-primary hover:bg-slate-700 text-white font-semibold py-3">
+                            <Button variant="default" className="w-full">
                               <Ticket className="h-4 w-4 mr-2" />
                               Daftar Sekarang
                             </Button>
@@ -654,42 +625,7 @@ export default function EventDetailPage() {
               </DialogContent>
             </Dialog>
 
-            {/* Organizer Card */}
-            <Card className="border-0 shadow-medium">
-              <CardHeader>
-                <CardTitle className="text-lg">Penyelenggara</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-                    <span className="text-white font-semibold">PH</span>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900">PlanHub Official</h4>
-                    <p className="text-sm text-gray-600">Organizer terpercaya</p>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Globe className="h-4 w-4 mr-2 text-primary" />
-                    <span>www.planhub.id</span>
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Mail className="h-4 w-4 mr-2 text-primary" />
-                    <span>hello@planhub.id</span>
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Phone className="h-4 w-4 mr-2 text-primary" />
-                    <span>+62 21 1234 5678</span>
-                  </div>
-                </div>
-
-                <Button variant="outline" className="w-full">
-                  Lihat Profile Organizer
-                </Button>
-              </CardContent>
-            </Card>
+            {/* Organizer Card dihapus */}
           </div>
         </div>
       </div>

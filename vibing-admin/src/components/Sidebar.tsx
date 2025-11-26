@@ -50,7 +50,6 @@ export default function Sidebar({ className }: SidebarProps) {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/' },
     { id: 'events', label: 'Daftar Event', icon: Calendar, href: '/events' },
-    { id: 'statistics', label: 'Statistik', icon: BarChart3, href: '/statistics' },
     { id: 'exports', label: 'Ekspor Data', icon: Download, href: '/exports' },
     { id: 'global-templates', label: 'Global Templates', icon: FileText, href: '/certificate-templates/global' },
   ];

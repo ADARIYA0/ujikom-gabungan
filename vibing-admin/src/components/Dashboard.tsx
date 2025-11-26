@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -16,9 +16,20 @@ import {
   Star,
   Plus,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  BarChart3,
+  TrendingDown
 } from 'lucide-react';
 import { Event } from '../types';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid
+} from 'recharts';
 import { useEvents } from '../hooks/useEvents';
 import ErrorAlert from './ErrorAlert';
 import EventFormDialog from './ui/event-form-dialog';
@@ -71,6 +82,66 @@ export default function Dashboard() {
       year: 'numeric'
     }).format(date);
   };
+
+  // Chart state
+  const [chartYear, setChartYear] = useState<number>(new Date().getFullYear());
+  const [chartLoading, setChartLoading] = useState<boolean>(false);
+  const [eventsPerMonth, setEventsPerMonth] = useState<number[]>(Array(12).fill(0));
+  const [checkedInPerMonth, setCheckedInPerMonth] = useState<number[]>(Array(12).fill(0));
+  const [topEvents, setTopEvents] = useState<any[]>([]);
+
+  const API_BASE = process.env.NEXT_PUBLIC_API_KEY;
+
+  const fetchChartData = async (year: number) => {
+    try {
+      setChartLoading(true);
+      const params = new URLSearchParams();
+      params.append('year', String(year));
+      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+      const res = await fetch(`${API_BASE}/events/export/attendance?${params.toString()}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        }
+      });
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      const data = await res.json();
+
+      const evPerMonth = Array(12).fill(0);
+      const ciPerMonth = Array(12).fill(0);
+
+      for (const ev of data.events) {
+        const d = new Date(ev.waktu_mulai);
+        if (isNaN(d.getTime())) continue;
+        const m = d.getMonth();
+        evPerMonth[m] += 1;
+        ciPerMonth[m] += Number(ev.checked_in_count || 0);
+      }
+
+      setEventsPerMonth(evPerMonth);
+      setCheckedInPerMonth(ciPerMonth);
+
+      const sorted = [...data.events].sort((a: any, b: any) => (b.checked_in_count || 0) - (a.checked_in_count || 0));
+      setTopEvents(sorted.slice(0, 10));
+    } catch (err) {
+      console.error('Failed to fetch chart data', err);
+    } finally {
+      setChartLoading(false);
+    }
+  };
+
+  // load chart data on mount / year change
+  useEffect(() => {
+    fetchChartData(chartYear);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartYear]);
+
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const chartData = MONTH_NAMES.map((m, i) => ({
+    month: m,
+    events: eventsPerMonth[i] || 0,
+    checkedIn: checkedInPerMonth[i] || 0
+  }));
 
   const getStatusBadge = (status: Event['status']) => {
     const statusConfig = {
@@ -239,7 +310,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -304,6 +375,96 @@ export default function Dashboard() {
                   >
                     Buat Event Pertama
                   </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <BarChart3 className="h-5 w-5 text-blue-600" />
+                    Event per Bulan
+                  </CardTitle>
+                  <CardDescription>Jumlah event yang dibuat setiap bulannya</CardDescription>
+                </div>
+                <select value={chartYear} onChange={(e) => setChartYear(Number(e.target.value))} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white hover:border-teal-400 transition-colors">
+                  {Array.from({ length: 6 }).map((_, i) => {
+                    const y = new Date().getFullYear() - i;
+                    return <option key={y} value={y}>{y}</option>;
+                  })}
+                </select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {chartLoading ? (
+                <div className="h-64 flex items-center justify-center text-gray-500">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-10 w-10 border-2 border-teal-300 border-t-teal-600 mx-auto mb-2"></div>
+                    <p>Memuat data...</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-4">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
+                      <XAxis dataKey="month" stroke="#64748b" />
+                      <YAxis allowDecimals={false} stroke="#64748b" />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #e0e7ff', borderRadius: '8px' }}
+                        cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
+                      />
+                      <Bar dataKey="events" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Users className="h-5 w-5 text-emerald-600" />
+                    Peserta Hadir per Bulan
+                  </CardTitle>
+                  <CardDescription>Jumlah peserta yang hadir setiap bulannya</CardDescription>
+                </div>
+                <select value={chartYear} onChange={(e) => setChartYear(Number(e.target.value))} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white hover:border-teal-400 transition-colors">
+                  {Array.from({ length: 6 }).map((_, i) => {
+                    const y = new Date().getFullYear() - i;
+                    return <option key={y} value={y}>{y}</option>;
+                  })}
+                </select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {chartLoading ? (
+                <div className="h-64 flex items-center justify-center text-gray-500">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-10 w-10 border-2 border-emerald-300 border-t-emerald-600 mx-auto mb-2"></div>
+                    <p>Memuat data...</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-4">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#d1fae5" />
+                      <XAxis dataKey="month" stroke="#64748b" />
+                      <YAxis allowDecimals={false} stroke="#64748b" />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #d1fae5', borderRadius: '8px' }}
+                        cursor={{ fill: 'rgba(16, 185, 129, 0.1)' }}
+                      />
+                      <Bar dataKey="checkedIn" fill="#10b981" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               )}
             </CardContent>
@@ -385,6 +546,65 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <TrendingDown className="h-5 w-5 text-orange-600" />
+                    Top 10 Event
+                  </CardTitle>
+                  <CardDescription>Kehadiran tertinggi</CardDescription>
+                </div>
+                <select value={chartYear} onChange={(e) => setChartYear(Number(e.target.value))} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white hover:border-teal-400 transition-colors">
+                  {Array.from({ length: 6 }).map((_, i) => {
+                    const y = new Date().getFullYear() - i;
+                    return <option key={y} value={y}>{y}</option>;
+                  })}
+                </select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {chartLoading ? (
+                <div className="h-64 flex items-center justify-center text-gray-500">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-orange-300 border-t-orange-600 mx-auto mb-2"></div>
+                    <p className="text-sm">Memuat data...</p>
+                  </div>
+                </div>
+              ) : topEvents.length === 0 ? (
+                <div className="h-64 flex items-center justify-center text-gray-500">
+                  <div className="text-center">
+                    <AlertCircle className="h-10 w-10 mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm">Belum ada data</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-3">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart 
+                      data={topEvents.slice(0, 5).map(e => ({ 
+                        name: e.judul_kegiatan.length > 20 ? e.judul_kegiatan.substring(0, 17) + '...' : e.judul_kegiatan, 
+                        checkedIn: Number(e.checked_in_count || 0) 
+                      }))} 
+                      layout="vertical" 
+                      margin={{ top: 5, right: 20, left: 100, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#fed7aa" />
+                      <XAxis type="number" allowDecimals={false} stroke="#64748b" width={30} />
+                      <YAxis dataKey="name" type="category" width={95} tick={{ fontSize: 11 }} stroke="#64748b" />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #fed7aa', borderRadius: '8px', fontSize: '12px' }}
+                        cursor={{ fill: 'rgba(249, 115, 22, 0.1)' }}
+                      />
+                      <Bar dataKey="checkedIn" fill="#f97316" radius={[0, 8, 8, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -396,3 +616,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

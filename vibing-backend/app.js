@@ -13,14 +13,13 @@ const app = express();
 
 app.use(cookieParser());
 app.use(cors(corsOptions));
-// Increase body parser limit to 50MB for large base64 images
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use('/api/auth', authRoute);
 app.use('/api/auth/admin', adminRoute);
 app.use('/api/category', categoryRoute);
-app.use('/api/event', eventRoute);
+app.use('/api/events', eventRoute);
 app.use('/api/user', userRoute);
 app.use('/api/payment', require('./src/routes/paymentRoute'));
 app.use('/api/global-certificate-templates', require('./src/routes/certificateTemplates'));

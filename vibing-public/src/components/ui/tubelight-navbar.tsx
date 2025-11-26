@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
@@ -12,7 +12,32 @@ interface NavItem {
   name: string;
   url: string;
   icon?: React.ReactNode;
+  isHashLink?: boolean;
 }
+  const handleHashLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, url: string, pathname: string, router: any) => {
+    const hasHash = url.includes("#");
+    if (!hasHash) return;
+
+    e.preventDefault();
+    const parts = url.split("#");
+    const elementId = parts[parts.length - 1];
+
+    // If we're already on the root page, just scroll to the element
+    if (pathname === "/") {
+      const el = document.getElementById(elementId);
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+
+    // Otherwise navigate to root with hash then attempt to scroll after route change
+    // Using a short timeout to allow the new page to render the target element.
+    // This is a pragmatic approach compatible with the app-router client navigation.
+    router.push(`/#${elementId}`);
+    setTimeout(() => {
+      const el = document.getElementById(elementId);
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    }, 120);
+  };
 
 interface NavBarProps {
   items: NavItem[];
@@ -21,6 +46,7 @@ interface NavBarProps {
 
 export function NavBar({ items, className }: NavBarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState(items[0]?.name ?? "");
   const [isMobile, setIsMobile] = useState(false);
 
@@ -37,8 +63,10 @@ export function NavBar({ items, className }: NavBarProps) {
   useEffect(() => {
     if (!items.length) return;
     const matched = items.find((item) => {
-      if (item.url === "/") {
-        return pathname === "/";
+      // Treat hash links specially: if the item has a hash, check if current pathname is root
+      if (item.url === "/") return pathname === "/";
+      if (item.url.includes("#")) {
+        return pathname === "/"; // when on root, the active state will be driven by scroll observer
       }
       return pathname?.startsWith(item.url);
     });
@@ -47,6 +75,58 @@ export function NavBar({ items, className }: NavBarProps) {
       setActiveTab(matched.name);
     }
   }, [pathname, items]);
+
+  // Observe sections corresponding to hash-links and update activeTab on scroll
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const observers: IntersectionObserver[] = [];
+
+    // If there's a root nav item (e.g. Beranda -> "/"), observe the hero section
+    const rootItem = items.find((it) => it.url === "/");
+    if (rootItem) {
+      const heroEl = document.getElementById("hero");
+      if (heroEl) {
+        const heroObs = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                setActiveTab(rootItem.name);
+              }
+            });
+          },
+          { root: null, threshold: 0.35 },
+        );
+        heroObs.observe(heroEl);
+        observers.push(heroObs);
+      }
+    }
+
+    const hashItems = items.filter((it) => it.url.includes("#"));
+    hashItems.forEach((it) => {
+      const parts = it.url.split("#");
+      const id = parts[parts.length - 1];
+      const el = document.getElementById(id);
+      if (!el) return;
+
+      const obs = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              setActiveTab(it.name);
+            }
+          });
+        },
+        { root: null, threshold: 0.45 },
+      );
+
+      obs.observe(el);
+      observers.push(obs);
+    });
+
+    return () => {
+      observers.forEach((o) => o.disconnect());
+    };
+  }, [items]);
 
   return (
     <div
@@ -61,10 +141,18 @@ export function NavBar({ items, className }: NavBarProps) {
           const isActive = activeTab === item.name;
 
           return (
-            <Link
+            <a
               key={item.name}
               href={item.url}
-              onClick={() => setActiveTab(item.name)}
+              onClick={(e) => {
+                // handle urls that include hashes (both '#id' and '/#id')
+                if (item.url.includes("#")) {
+                  handleHashLinkClick(e, item.url, pathname, router);
+                }
+                setActiveTab(item.name);
+              }}
+              style={item.isHashLink ? {} : { cursor: "pointer" }}
+              {...(!item.isHashLink && { target: "_self" })}
               className={cn(
                 "relative cursor-pointer rounded-full px-6 py-2 text-sm font-semibold transition-colors",
                 "text-foreground/80 hover:text-primary",
@@ -93,7 +181,7 @@ export function NavBar({ items, className }: NavBarProps) {
                   </div>
                 </motion.div>
               )}
-            </Link>
+            </a>
           );
         })}
       </div>

@@ -94,7 +94,7 @@ export async function fetchEvents(params?: {
   time_range?: 'today' | 'this_week' | 'this_month' | 'next_month';
 }): Promise<Event[]> {
   try {
-    const url = new URL(`${API_BASE_URL}/event`);
+    const url = new URL(`${API_BASE_URL}/events`);
     
     if (params?.search) {
       url.searchParams.append('search', params.search);
@@ -133,7 +133,7 @@ export async function fetchEvents(params?: {
 // Fetch single event by ID
 export async function fetchEventById(id: string): Promise<Event> {
   try {
-    const response = await fetch(`${API_BASE_URL}/event/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/events/${id}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -158,7 +158,7 @@ export async function fetchEventById(id: string): Promise<Event> {
 // Fetch single event by slug
 export async function fetchEventBySlug(slug: string): Promise<Event> {
   try {
-    const response = await fetch(`${API_BASE_URL}/event/slug/${slug}`, {
+    const response = await fetch(`${API_BASE_URL}/events/slug/${slug}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -263,7 +263,7 @@ export class EventApiService {
         form.append('certificate_template_id', (formData as any).certificate_template_id.toString());
       }
 
-      const response = await fetch(`${API_BASE_URL}/event`, {
+      const response = await fetch(`${API_BASE_URL}/events`, {
         method: 'POST',
         headers: this.getHeaders(false, true), // false = no Content-Type (FormData sets it automatically), true = include auth token
         body: form,
@@ -338,7 +338,7 @@ export class EventApiService {
         form.append('sertifikat_kegiatan', formData.sertifikat_kegiatan);
       }
 
-      const response = await fetch(`${API_BASE_URL}/event/${eventId}`, {
+      const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
         method: 'PUT',
         headers: this.getHeaders(false, true), // false = no Content-Type (FormData sets it automatically), true = include auth token
         body: form,
@@ -365,7 +365,7 @@ export class EventApiService {
 
   static async deleteEvent(eventId: number): Promise<{ message: string; data: { id: number } }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/event/${eventId}`, {
+      const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
         method: 'DELETE',
         headers: this.getHeaders(true, true), // Include Content-Type and auth token
       });

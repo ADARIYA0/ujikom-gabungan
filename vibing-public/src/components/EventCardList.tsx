@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Card, CardContent } from './ui/card';
+import { Card, CardContent, CardFooter } from './ui/card';
 import { Event } from '@/types';
 import { EventService } from '@/services/eventService';
 
@@ -34,11 +34,19 @@ export function EventCardList({ event, onViewDetails, onRegister, onCheckIn, isL
     const isPaidEvent = event.harga && (typeof event.harga === 'number' ? event.harga > 0 : parseFloat(String(event.harga)) > 0);
 
     return (
-        <Card className={`group transition-all duration-300 overflow-hidden bg-gray-900 border shadow-sm flex flex-col ${
-            isEventPassed 
-                ? 'border-gray-700 opacity-75 cursor-not-allowed' 
-                : 'border-gray-800 hover:shadow-lg hover:-translate-y-0.5 hover:border-gray-700'
-        }`}>
+        <Card className={`group transition-all duration-300 overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border shadow-medium flex flex-col h-full relative ${
+                isEventPassed 
+                    ? 'border-gray-700 opacity-75 cursor-not-allowed' 
+                    : 'border-gray-700/50 hover:shadow-2xl hover:-translate-y-2 hover:border-primary/60 hover:shadow-primary/30'
+            }`}>
+            {/* Glow effect on hover */}
+            {!isEventPassed && (
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-slate-500/0 to-primary/0 group-hover:from-primary/10 group-hover:via-slate-500/15 group-hover:to-primary/10 rounded-lg transition-all duration-300 pointer-events-none"></div>
+            )}
+            {/* Animated border glow */}
+            {!isEventPassed && (
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary via-slate-500 to-primary rounded-lg opacity-0 group-hover:opacity-20 blur-sm transition-opacity duration-300 -z-10"></div>
+            )}
             <CardContent className="p-0">
                 <div className="flex flex-col md:flex-row">
                     {/* Image Section */}
@@ -52,8 +60,8 @@ export function EventCardList({ event, onViewDetails, onRegister, onCheckIn, isL
                             placeholder="blur"
                             blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
                         />
-                        <div className="absolute top-4 left-4">
-                            <Badge className={`${EventService.getCategoryColor(categoryName)} border font-semibold text-xs backdrop-blur-sm`}>
+                        <div className="absolute top-4 left-4 z-20">
+                            <Badge className={`${EventService.getCategoryColor(categoryName)} border font-semibold text-xs backdrop-blur-md shadow-lg shadow-black/20 group-hover:scale-105 transition-transform duration-300`}>
                                 {categoryName}
                             </Badge>
                         </div>
@@ -76,7 +84,7 @@ export function EventCardList({ event, onViewDetails, onRegister, onCheckIn, isL
                     {/* Content Section */}
                     <div className="flex-1 p-6 flex flex-col">
                         <div className="flex-1">
-                            <h3 className="font-bold mb-3 line-clamp-2 group-hover:text-primary transition-colors text-white leading-tight text-xl">
+                            <h3 className="font-bold mb-3 line-clamp-2 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-primary group-hover:via-slate-400 group-hover:to-primary transition-all duration-300 text-white leading-tight text-lg">
                                 {event.judul_kegiatan}
                             </h3>
                             <p className="text-gray-400 mb-4 line-clamp-3 leading-relaxed">
@@ -103,55 +111,60 @@ export function EventCardList({ event, onViewDetails, onRegister, onCheckIn, isL
                             </div>
                         </div>
 
-                        {/* Price and Actions */}
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-4 border-t border-gray-700">
-                            <div className="flex items-center justify-between md:justify-start md:gap-6">
-                                <span className="font-bold text-primary text-xl">
-                                    {EventService.formatPrice(event.harga)}
-                                </span>
-                                <div className="text-xs text-gray-400 bg-gray-800 px-3 py-1.5 rounded-full font-medium border border-gray-700">
-                                    {event.kapasitas_peserta - event.attendee_count} slot tersisa
+                        {/* Price and Actions - use CardFooter to match EventCard background */}
+                        <CardFooter className="p-6 pt-0 bg-gradient-to-br from-gray-800/60 via-gray-800/40 to-gray-900/60">
+                            <div className="w-full flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                <div className="flex items-center justify-between md:justify-start md:gap-6">
+                                    <span className={`font-bold bg-gradient-to-r from-primary via-slate-400 to-primary bg-clip-text text-transparent text-xl ${isEventPassed ? 'opacity-50' : ''}`}>
+                                        {EventService.formatPrice(event.harga)}
+                                    </span>
+                                    <div className="text-xs text-gray-400 bg-gray-800 px-3 py-1.5 rounded-full font-medium border border-gray-700">
+                                        {event.kapasitas_peserta - event.attendee_count} slot tersisa
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <Button
+                                        variant="outline"
+                                        size="lg"
+                                        onClick={handleViewDetails}
+                                    >
+                                        Detail
+                                    </Button>
+                                    {isLoggedIn ? (
+                                        isRegistered ? (
+                                            <Button
+                                                size="lg"
+                                                variant="success"
+                                                onClick={() => onCheckIn ? onCheckIn(event.id) : onViewDetails(event.slug)}
+                                                disabled={attendanceStatus === 'hadir' || isEventPassed || !isEventStarted}
+                                                title={!isEventStarted ? `Check-in dapat dilakukan mulai ${EventService.formatEventStartTime(event)} WIB` : undefined}
+                                            >
+                                                {attendanceStatus === 'hadir' ? 'Sudah Hadir' : isEventPassed ? 'Sudah Lewat' : !isEventStarted ? 'Belum Waktunya' : 'Isi Data Kehadiran'}
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                size="lg"
+                                                variant="default"
+                                                onClick={() => onRegister(event.id)}
+                                                disabled={isEventFull || isEventPassed || isEventStarted}
+                                            >
+                                                {isEventPassed ? 'Event Sudah Berlalu' : isEventStarted ? 'Pendaftaran Ditutup' : isEventFull ? 'Penuh' : isPaidEvent ? 'Bayar' : 'Daftar'}
+                                            </Button>
+                                        )
+                                    ) : (
+                                            <Button
+                                                size="lg"
+                                                variant="outline"
+                                                onClick={() => router.push(`/login?returnUrl=${encodeURIComponent(`/events/${event.slug}`)}`)}
+                                                disabled={isEventStarted || isEventPassed}
+                                            >
+                                                {isEventPassed ? 'Event Sudah Berlalu' : isEventStarted ? 'Pendaftaran Ditutup' : 'Login Dulu'}
+                                            </Button>
+                                    )}
                                 </div>
                             </div>
-
-                            <div className="flex gap-3">
-                                <Button
-                                    variant="outline"
-                                    onClick={handleViewDetails}
-                                    className="h-10 px-6 border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white hover:border-gray-600 transition-colors font-semibold bg-gray-900"
-                                >
-                                    Detail
-                                </Button>
-                                {isLoggedIn ? (
-                                    isRegistered ? (
-                                        <Button
-                                            onClick={() => onCheckIn ? onCheckIn(event.id) : onViewDetails(event.slug)}
-                                            disabled={attendanceStatus === 'hadir' || isEventPassed || !isEventStarted}
-                                            className="h-10 px-6 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-gray-300 disabled:text-gray-500 transition-colors font-semibold"
-                                            title={!isEventStarted ? `Check-in dapat dilakukan mulai ${EventService.formatEventStartTime(event)} WIB` : undefined}
-                                        >
-                                            {attendanceStatus === 'hadir' ? 'Sudah Hadir' : isEventPassed ? 'Sudah Lewat' : !isEventStarted ? 'Belum Waktunya' : 'Isi Data Kehadiran'}
-                                        </Button>
-                                    ) : (
-                                        <Button
-                                            onClick={() => onRegister(event.id)}
-                                            disabled={isEventFull || isEventPassed || isEventStarted}
-                                            className="h-10 px-6 bg-primary hover:bg-slate-700 text-white disabled:bg-gray-300 disabled:text-gray-500 transition-colors font-semibold"
-                                        >
-                                            {isEventPassed ? 'Event Sudah Berlalu' : isEventStarted ? 'Pendaftaran Ditutup' : isEventFull ? 'Penuh' : isPaidEvent ? 'Bayar' : 'Daftar'}
-                                        </Button>
-                                    )
-                                ) : (
-                                    <Button
-                                        onClick={() => router.push(`/login?returnUrl=${encodeURIComponent(`/events/${event.slug}`)}`)}
-                                        disabled={isEventStarted || isEventPassed}
-                                        className="h-10 px-6 bg-primary hover:bg-slate-700 text-white disabled:bg-gray-300 disabled:text-gray-500 transition-colors font-semibold"
-                                    >
-                                        {isEventPassed ? 'Event Sudah Berlalu' : isEventStarted ? 'Pendaftaran Ditutup' : 'Login Dulu'}
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
+                        </CardFooter>
                     </div>
                 </div>
             </CardContent>

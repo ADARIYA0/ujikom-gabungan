@@ -146,14 +146,14 @@ export default function Home() {
       icon: <Search className="h-4 w-4 text-neutral-500 dark:text-white" />,
     },
     {
-      name: "Harga",
-      link: "/pricing",
-      icon: <BadgePercent className="h-4 w-4 text-neutral-500 dark:text-white" />,
+      name: "Tentang Kami",
+      link: "#about",
+      icon: <Contact className="h-4 w-4 text-neutral-500 dark:text-white" />,
     },
     {
-      name: "Tentang Kami",
-      link: "/about",
-      icon: <Contact className="h-4 w-4 text-neutral-500 dark:text-white" />,
+      name: "Harga",
+      link: "#pricing",
+      icon: <BadgePercent className="h-4 w-4 text-neutral-500 dark:text-white" />,
     },
   ];
 
@@ -252,6 +252,7 @@ const faqFeatures: FaqFeatureItem[] = [
       <Header headerItems={headerItems} />
 
       {/* Hero Section - Using Hero45 Component */}
+      <section id="hero">
       <Hero45
         badge="vibing.my.id"
         heading="Platform Event Terpercaya untuk Pengalaman Tak Terlupakan"
@@ -278,8 +279,10 @@ const faqFeatures: FaqFeatureItem[] = [
           },
         ]}
       />
+      </section>
 
       {/* About Section */}
+      <section id="about">
       <About3
         title="VIBING adalah platform untuk mengelola event secara menyeluruh"
         description="Dari perencanaan hingga absensi, VIBING menyatukan kanal komunikasi, registrasi, dan pembayaran dalam satu dashboard yang dapat diakses oleh tim mana pun."
@@ -300,8 +303,8 @@ const faqFeatures: FaqFeatureItem[] = [
           buttonText: "Jelajahi VIBING",
           buttonUrl: "https://vibing.my.id",
         }}
-        companiesTitle="Dipercaya oleh komunitas penyelenggara",
-        achievementsTitle="Angka dari setiap event yang kami bantu",
+        companiesTitle="Dipercaya oleh komunitas penyelenggara"
+        achievementsTitle="Angka dari setiap event yang kami bantu"
         achievementsDescription="VIBING menjaga setiap detail tetap terlihat, mulai dari pengelolaan kategori hingga KPI pasca-event."
         achievements={[
           { label: "Event otomatis", value: "1.200+" },
@@ -310,6 +313,7 @@ const faqFeatures: FaqFeatureItem[] = [
           { label: "Rilis update", value: "35+" },
         ]}
       />
+      </section>
 
       {/* Features Section with Hover Effects */}
       <section className="py-16 bg-background dark:bg-black transition-colors">
@@ -328,7 +332,7 @@ const faqFeatures: FaqFeatureItem[] = [
       <section className="py-16 bg-background dark:bg-[#050505] transition-colors">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <Badge className="bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 mb-4 font-semibold">
+            <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 mb-4 font-semibold">
               UPCOMING EVENT
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900 dark:text-white">Event Terbaik Bulan Ini</h2>
@@ -399,7 +403,9 @@ const faqFeatures: FaqFeatureItem[] = [
       </section>
 
       {/* Pricing Section */}
+      <section id="pricing">
       <PricingSection tiers={pricingTiers} className="bg-background dark:bg-black transition-colors" />
+      </section>
 
       {/* FAQ Section */}
       <section className="bg-background dark:bg-black py-16 transition-colors">
@@ -471,7 +477,8 @@ const faqFeatures: FaqFeatureItem[] = [
               <Button
                 onClick={handleCheckInSubmit}
                 disabled={isCheckingIn || !checkInToken.trim()}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                variant="success"
+                className="flex-1"
               >
                 {isCheckingIn ? 'Memproses...' : 'Konfirmasi Absensi'}
               </Button>

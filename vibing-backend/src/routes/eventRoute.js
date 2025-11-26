@@ -9,6 +9,7 @@ const optionalAuth = require('../middlewares/optionalAuth');
 const router = express.Router();
 
 router.get('/', optionalAuth, eventController.getAllEvent);
+router.get('/export/attendance', verifyToken, authorizeRoles('admin'), eventController.exportEventAttendanceSummary);
 
 router.post(
     '/',

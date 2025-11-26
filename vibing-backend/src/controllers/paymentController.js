@@ -616,7 +616,7 @@ exports.getPaymentByEventId = async (req, res) => {
         const userId = req.user?.id;
         const { eventId } = req.params;
 
-        logger.info(`GET /payment/event/${eventId} by user=${userId}`);
+        logger.info(`GET /payment/events/${eventId} by user=${userId}`);
 
         if (!eventId) {
             return res.status(400).json({ message: 'Event ID diperlukan' });

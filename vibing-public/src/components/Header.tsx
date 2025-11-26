@@ -65,12 +65,14 @@ export const Header = ({ headerItems = [], className }: HeaderProps) => {
     await logout();
   };
 
+  // Convert header items for NavBar, handling hash links
   const navItems = useMemo(
     () =>
       headerItems.map((item) => ({
         name: item.name,
         url: item.link,
         icon: item.icon,
+        isHashLink: item.link.startsWith("#"), // Flag hash links
       })),
     [headerItems],
   );

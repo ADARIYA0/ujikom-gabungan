@@ -11,7 +11,7 @@ router.post('/create', verifyToken, paymentController.createPayment);
 router.get('/:paymentId/status', verifyToken, paymentController.getPaymentStatus);
 
 // Get payment by event ID
-router.get('/event/:eventId', verifyToken, paymentController.getPaymentByEventId);
+router.get('/events/:eventId', verifyToken, paymentController.getPaymentByEventId);
 
 // Get all pending payments for current user
 router.get('/pending', verifyToken, paymentController.getPendingPayments);

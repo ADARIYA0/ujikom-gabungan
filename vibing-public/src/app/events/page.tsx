@@ -10,10 +10,10 @@ import { SearchFilters } from '@/components/SearchFilters';
 import { Footer } from '@/components/Footer';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { Calendar, Grid3X3, List, LayoutGrid } from 'lucide-react';
+import { Calendar, List, LayoutGrid } from 'lucide-react';
 import { useEvents, useEventRegistration, useEventCheckIn } from '@/hooks/useEvents';
 import { useAuth } from '@/contexts/AuthContext';
-import { Filters, EventCategory, Event } from '@/types';
+import { Filters, EventCategory } from '@/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -91,10 +91,8 @@ export default function EventPage() {
       // If payment is required, redirect to payment page immediately
       if (result.data?.requiresPayment) {
         // Don't show toast, redirect immediately
-        // Use eventId if available (new flow), otherwise use attendanceId (backward compatibility)
-        const paymentParam = result.data.eventId 
-          ? `event_id=${result.data.eventId}` 
-          : `attendance_id=${result.data.attendanceId}`;
+        // Use eventId for payment
+        const paymentParam = `event_id=${eventId}`;
         router.push(`/payment?${paymentParam}`);
         return;
       }
@@ -154,9 +152,20 @@ export default function EventPage() {
     }
   };
 
-  // Sort events by nearest time
+  // Sort events by nearest time but push events that ended >3 days ago to the bottom
   const sortedEvents = useMemo(() => {
+    const now = Date.now();
+    const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
     return [...events].sort((a, b) => {
+      const endA = new Date(a.waktu_berakhir).getTime();
+      const endB = new Date(b.waktu_berakhir).getTime();
+      const isVeryPastA = now - endA > THREE_DAYS_MS;
+      const isVeryPastB = now - endB > THREE_DAYS_MS;
+
+      // If one is very past and the other is not, put the very-past one after
+      if (isVeryPastA !== isVeryPastB) return isVeryPastA ? 1 : -1;
+
+      // Otherwise fall back to sorting by start time (nearest first)
       const dateA = new Date(a.waktu_mulai).getTime();
       const dateB = new Date(b.waktu_mulai).getTime();
       return dateA - dateB;
@@ -182,19 +191,19 @@ export default function EventPage() {
       icon: <Search className="h-4 w-4 text-neutral-500 dark:text-white" />,
     },
     {
-      name: "Harga",
-      link: "/pricing",
-      icon: <BadgePercent className="h-4 w-4 text-neutral-500 dark:text-white" />,
+      name: "Tentang Kami",
+      link: "/#about",
+      icon: <Contact className="h-4 w-4 text-neutral-500 dark:text-white" />,
     },
     {
-      name: "Tentang Kami",
-      link: "/about",
-      icon: <Contact className="h-4 w-4 text-neutral-500 dark:text-white" />,
+      name: "Harga",
+      link: "/#pricing",
+      icon: <BadgePercent className="h-4 w-4 text-neutral-500 dark:text-white" />,
     },
   ];
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden">
+    <div className="min-h-screen bg-background dark:bg-black relative overflow-hidden">
       {/* Animated Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse"></div>
@@ -345,7 +354,7 @@ export default function EventPage() {
                   onRegister={handleRegisterEvent}
                     onCheckIn={handleCheckInClick}
                   isLoggedIn={isLoggedIn}
-                  fromPage="events"
+                  fromPage="event"
                 />
               ) : (
                 <EventCardList
@@ -354,7 +363,7 @@ export default function EventPage() {
                   onRegister={handleRegisterEvent}
                     onCheckIn={handleCheckInClick}
                   isLoggedIn={isLoggedIn}
-                  fromPage="events"
+                  fromPage="event"
                 />
                 )}
               </div>
@@ -416,7 +425,8 @@ export default function EventPage() {
               <Button
                 onClick={handleCheckInSubmit}
                 disabled={isCheckingIn || !checkInToken.trim()}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                variant="success"
+                className="flex-1"
               >
                 {isCheckingIn ? 'Memproses...' : 'Konfirmasi Absensi'}
               </Button>

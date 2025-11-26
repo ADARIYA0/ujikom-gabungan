@@ -46,7 +46,7 @@ export function Hero({
               {categories.slice(0, Math.min(4, categories.length)).map((category, index) => (
                 <div
                   key={`category-card-mobile-${category.id}`}
-                  className="group relative w-full aspect-[3/4] bg-gradient-to-br from-gray-800 to-gray-900 overflow-hidden rounded-md shadow-lg card-hover-transition cursor-pointer"
+                  className="group relative w-full aspect-[3/4] bg-white dark:bg-gradient-to-br dark:from-gray-800 dark:to-gray-900 overflow-hidden rounded-md shadow-lg card-hover-transition cursor-pointer"
                 >
                   {category.kategori_logo_url ? (
                     <Image
@@ -100,7 +100,7 @@ export function Hero({
               {categories.slice(0, Math.min(6, categories.length)).map((category, index) => (
                 <div
                   key={`category-card-sm-${category.id}`}
-                  className="group relative w-full aspect-[3/4] bg-gradient-to-br from-gray-800 to-gray-900 overflow-hidden rounded-lg shadow-lg card-hover-transition cursor-pointer"
+                  className="group relative w-full aspect-[3/4] bg-white dark:bg-gradient-to-br dark:from-gray-800 dark:to-gray-900 overflow-hidden rounded-lg shadow-lg card-hover-transition cursor-pointer"
                 >
                   {category.kategori_logo_url ? (
                     <Image
@@ -154,7 +154,7 @@ export function Hero({
               {categories.slice(0, Math.min(10, categories.length)).map((category, index) => (
                 <div
                   key={`category-card-${category.id}`}
-                  className="group relative flex-shrink-0 bg-gradient-to-br from-gray-800 to-gray-900 overflow-hidden rounded-lg shadow-xl card-hover-transition cursor-pointer"
+                  className="group relative flex-shrink-0 bg-white dark:bg-gradient-to-br dark:from-gray-800 dark:to-gray-900 overflow-hidden rounded-lg shadow-xl card-hover-transition cursor-pointer"
                   style={{
                     width: `calc(4rem + 12vw)`,
                     height: `calc(6rem + 15vw)`
