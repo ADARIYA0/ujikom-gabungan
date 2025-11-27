@@ -141,11 +141,6 @@ export default function Home() {
       icon: <HomeIcon className="h-4 w-4 text-neutral-500 dark:text-white" />,
     },
     {
-      name: "Cari Kegiatan",
-      link: "/events",
-      icon: <Search className="h-4 w-4 text-neutral-500 dark:text-white" />,
-    },
-    {
       name: "Tentang Kami",
       link: "#about",
       icon: <Contact className="h-4 w-4 text-neutral-500 dark:text-white" />,
@@ -154,6 +149,11 @@ export default function Home() {
       name: "Harga",
       link: "#pricing",
       icon: <BadgePercent className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Cari Kegiatan",
+      link: "/events",
+      icon: <Search className="h-4 w-4 text-neutral-500 dark:text-white" />,
     },
   ];
 
@@ -254,7 +254,7 @@ const faqFeatures: FaqFeatureItem[] = [
       {/* Hero Section - Using Hero45 Component */}
       <section id="hero">
       <Hero45
-        badge="vibing.my.id"
+        badge="VIBING.my.id"
         heading="Platform Event Terpercaya untuk Pengalaman Tak Terlupakan"
         imageSrc="https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&h=600&fit=crop"
         imageAlt="Event Platform"
@@ -285,7 +285,7 @@ const faqFeatures: FaqFeatureItem[] = [
       <section id="about">
       <About3
         title="VIBING adalah platform untuk mengelola event secara menyeluruh"
-        description="Dari perencanaan hingga absensi, VIBING menyatukan kanal komunikasi, registrasi, dan pembayaran dalam satu dashboard yang dapat diakses oleh tim mana pun."
+        description="Dari perencanaan hingga absensi, VIBING menghadirkan alur kerja yang lebih rapi dan efisien. Seluruh kanal komunikasi, proses registrasi peserta, hingga sistem pembayaran disatukan dalam satu dashboard terpadu yang dapat diakses oleh setiap anggota tim. Dengan begitu, koordinasi lebih cepat, pengawasan lebih mudah, dan setiap tahapan event dapat dikelola dengan jauh lebih terstruktur."
         mainImage={{
           src: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1400&q=80",
           alt: "Tim sedang merencanakan event",
@@ -304,6 +304,32 @@ const faqFeatures: FaqFeatureItem[] = [
           buttonUrl: "https://vibing.my.id",
         }}
         companiesTitle="Dipercaya oleh komunitas penyelenggara"
+        companies={[
+          {
+            src: "https://shadcnblocks.com/images/block/logos/company/fictional-company-logo-1.svg",
+            alt: "Arc",
+          },
+          {
+            src: "https://shadcnblocks.com/images/block/logos/company/fictional-company-logo-2.svg",
+            alt: "Descript",
+          },
+          {
+            src: "https://shadcnblocks.com/images/block/logos/company/fictional-company-logo-3.svg",
+            alt: "Mercury",
+          },
+          {
+            src: "https://shadcnblocks.com/images/block/logos/company/fictional-company-logo-4.svg",
+            alt: "Ramp",
+          },
+          {
+            src: "https://shadcnblocks.com/images/block/logos/company/fictional-company-logo-5.svg",
+            alt: "Retool",
+          },
+          {
+            src: "https://shadcnblocks.com/images/block/logos/company/fictional-company-logo-6.svg",
+            alt: "Watershed",
+          },
+        ]}
         achievementsTitle="Angka dari setiap event yang kami bantu"
         achievementsDescription="VIBING menjaga setiap detail tetap terlihat, mulai dari pengelolaan kategori hingga KPI pasca-event."
         achievements={[
@@ -332,12 +358,12 @@ const faqFeatures: FaqFeatureItem[] = [
       <section className="py-16 bg-background dark:bg-[#050505] transition-colors">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 mb-4 font-semibold">
+            <Badge variant="outline" className="text-xs uppercase tracking-[0.2em] mb-4">
               UPCOMING EVENT
             </Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900 dark:text-white">Event Terbaik Bulan Ini</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900 dark:text-white">Event Yang Akan Datang</h2>
             <p className="text-gray-600 dark:text-slate-300 max-w-2xl mx-auto text-lg">
-              Jangan lewatkan event populer yang paling diminati peserta kami
+              Jangan lewatkan juga event yang akan datang
             </p>
           </div>
 
@@ -410,7 +436,7 @@ const faqFeatures: FaqFeatureItem[] = [
       {/* FAQ Section */}
       <section className="bg-background dark:bg-black py-16 transition-colors">
         <div className="container mx-auto px-4 text-center">
-          <Badge className="mb-4 border-slate-200 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 font-semibold">
+          <Badge variant="outline" className="text-xs uppercase tracking-[0.2em] mb-4">
             FREQUENTLY ASKED QUESTIONS
           </Badge>
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">

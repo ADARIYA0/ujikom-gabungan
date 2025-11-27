@@ -186,11 +186,6 @@ export default function EventPage() {
       icon: <Home className="h-4 w-4 text-neutral-500 dark:text-white" />,
     },
     {
-      name: "Cari Kegiatan",
-      link: "/events",
-      icon: <Search className="h-4 w-4 text-neutral-500 dark:text-white" />,
-    },
-    {
       name: "Tentang Kami",
       link: "/#about",
       icon: <Contact className="h-4 w-4 text-neutral-500 dark:text-white" />,
@@ -199,6 +194,11 @@ export default function EventPage() {
       name: "Harga",
       link: "/#pricing",
       icon: <BadgePercent className="h-4 w-4 text-neutral-500 dark:text-white" />,
+    },
+    {
+      name: "Cari Kegiatan",
+      link: "/events",
+      icon: <Search className="h-4 w-4 text-neutral-500 dark:text-white" />,
     },
   ];
 

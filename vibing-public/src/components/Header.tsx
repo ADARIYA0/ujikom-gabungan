@@ -89,8 +89,8 @@ export const Header = ({ headerItems = [], className }: HeaderProps) => {
           aria-label="Toggle theme"
           className={cn(
             "inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/80 transition cursor-pointer",
-            "bg-white/80 text-slate-700 hover:border-primary/50 hover:text-primary hover:shadow-md hover:scale-105",
-            "dark:bg-black dark:text-slate-100 dark:hover:text-white dark:hover:shadow-md dark:hover:scale-105"
+            "bg-white/80 text-slate-700 hover:border-primary/50 hover:text-primary hover:shadow-md",
+            "dark:bg-black dark:text-slate-100 dark:hover:text-white dark:hover:shadow-md"
           )}
         >
           {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}

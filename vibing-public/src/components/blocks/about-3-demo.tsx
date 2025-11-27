@@ -1,37 +1,65 @@
 import { About3 } from "@/components/ui/about-3";
 
-export const About3Demo = () => {
+const DemoOne = () => {
   return (
     <About3
-      title="VIBING: Event management tanpa batas"
-      description="Platform kami menjaga detail perencanaan, sponsor, dan absensi tetap sinkron sehingga tim Anda bisa fokus menyampaikan pengalaman terbaik."
+      title="About Us"
+      description="Shadcnblocks is a passionate team dedicated to creating innovative solutions that empower businesses to thrive in the digital age."
       mainImage={{
-        src: "https://images.unsplash.com/photo-1487014679447-9f8336841d58?auto=format&fit=crop&w=1400&q=80",
-        alt: "Studio event planning",
+        src: "https://shadcnblocks.com/images/block/placeholder-1.svg",
+        alt: "placeholder",
       }}
       secondaryImage={{
-        src: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
-        alt: "Team alignment board",
+        src: "https://shadcnblocks.com/images/block/placeholder-2.svg",
+        alt: "placeholder",
       }}
       breakout={{
-        src: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=900&q=80",
-        alt: "Live analytics",
-        title: "Insight real-time",
+        src: "https://shadcnblocks.com/images/block/block-1.svg",
+        alt: "logo",
+        title: "Hundreds of blocks at Shadcnblocks.com",
         description:
-          "Lihat status tiket, keuangan, dan integrasi partner dalam satu layar tanpa menunggu laporan manual.",
-        buttonText: "Kenalan dengan VIBING",
-        buttonUrl: "https://vibing.my.id",
+          "Providing businesses with effective tools to improve workflows, boost efficiency, and encourage growth.",
+        buttonText: "Discover more",
+        buttonUrl: "https://shadcnblocks.com",
       }}
-      companiesTitle="Trusted by Indonesian event makers"
-      achievementsTitle="VIBING in action"
-      achievementsDescription="Tim event terus mempercepat delivery dengan automation, notifikasi, dan kolaborasi lintas departemen."
+      companiesTitle="Valued by clients worldwide"
+      companies={[
+        {
+          src: "https://shadcnblocks.com/images/block/logos/company/fictional-company-logo-1.svg",
+          alt: "Arc",
+        },
+        {
+          src: "https://shadcnblocks.com/images/block/logos/company/fictional-company-logo-2.svg",
+          alt: "Descript",
+        },
+        {
+          src: "https://shadcnblocks.com/images/block/logos/company/fictional-company-logo-3.svg",
+          alt: "Mercury",
+        },
+        {
+          src: "https://shadcnblocks.com/images/block/logos/company/fictional-company-logo-4.svg",
+          alt: "Ramp",
+        },
+        {
+          src: "https://shadcnblocks.com/images/block/logos/company/fictional-company-logo-5.svg",
+          alt: "Retool",
+        },
+        {
+          src: "https://shadcnblocks.com/images/block/logos/company/fictional-company-logo-6.svg",
+          alt: "Watershed",
+        },
+      ]}
+      achievementsTitle="Our Achievements in Numbers"
+      achievementsDescription="Providing businesses with effective tools to improve workflows, boost efficiency, and encourage growth."
       achievements={[
-        { label: "Events automated", value: "1.200+" },
-        { label: "Registrations processed", value: "250.000+" },
-        { label: "Positive reviews", value: "98%" },
-        { label: "Platform updates", value: "35+" },
+        { label: "Companies Supported", value: "300+" },
+        { label: "Projects Finalized", value: "800+" },
+        { label: "Happy Customers", value: "99%" },
+        { label: "Recognized Awards", value: "10+" },
       ]}
     />
   );
 };
+
+export { DemoOne };
 

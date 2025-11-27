@@ -95,7 +95,7 @@ export function Footer(props: Partial<FooterProps> = {}) {
                 <Button 
                   variant="secondary" 
                   size="icon" 
-                  className="h-10 w-10 rounded-full transition-all duration-300 hover:scale-110 hover:shadow-lg hover:bg-primary hover:text-primary-foreground dark:bg-slate-800 dark:hover:bg-primary dark:text-slate-300 dark:hover:text-primary-foreground" 
+                  className="h-10 w-10 rounded-full transition-all duration-300 hover:shadow-lg hover:bg-primary hover:text-primary-foreground dark:bg-slate-800 dark:hover:bg-primary dark:text-slate-300 dark:hover:text-primary-foreground" 
                   asChild
                 >
                   <a

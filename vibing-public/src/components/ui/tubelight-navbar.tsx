@@ -81,6 +81,10 @@ export function NavBar({ items, className }: NavBarProps) {
     if (typeof window === "undefined") return;
     const observers: IntersectionObserver[] = [];
 
+    // Use lower threshold for mobile to improve detection
+    const sectionThreshold = isMobile ? 0.15 : 0.35;
+    const hashThreshold = isMobile ? 0.1 : 0.45;
+
     // If there's a root nav item (e.g. Beranda -> "/"), observe the hero section
     const rootItem = items.find((it) => it.url === "/");
     if (rootItem) {
@@ -94,7 +98,7 @@ export function NavBar({ items, className }: NavBarProps) {
               }
             });
           },
-          { root: null, threshold: 0.35 },
+          { root: null, threshold: sectionThreshold },
         );
         heroObs.observe(heroEl);
         observers.push(heroObs);
@@ -116,7 +120,7 @@ export function NavBar({ items, className }: NavBarProps) {
             }
           });
         },
-        { root: null, threshold: 0.45 },
+        { root: null, threshold: hashThreshold },
       );
 
       obs.observe(el);
@@ -126,7 +130,7 @@ export function NavBar({ items, className }: NavBarProps) {
     return () => {
       observers.forEach((o) => o.disconnect());
     };
-  }, [items]);
+  }, [items, isMobile]);
 
   return (
     <div
@@ -145,6 +149,13 @@ export function NavBar({ items, className }: NavBarProps) {
               key={item.name}
               href={item.url}
               onClick={(e) => {
+                // Prevent reload if already on the same page (e.g., clicking "Beranda" while on "/")
+                if (item.url === "/" && pathname === "/") {
+                  e.preventDefault();
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  setActiveTab(item.name);
+                  return;
+                }
                 // handle urls that include hashes (both '#id' and '/#id')
                 if (item.url.includes("#")) {
                   handleHashLinkClick(e, item.url, pathname, router);

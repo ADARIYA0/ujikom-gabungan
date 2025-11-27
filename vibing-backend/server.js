@@ -54,7 +54,3 @@ const shutdown = async (signal) => {
 ['SIGINT', 'SIGTERM'].forEach((signal) => {
   process.on(signal, () => shutdown(signal));
 });
-
-process.on('SIGKILL', () => {
-  logger.warn('SIGKILL received: cannot perform graceful shutdown, process will be killed immediately.');
-})
