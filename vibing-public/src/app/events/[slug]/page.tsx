@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Header } from '@/components/Header';
@@ -34,7 +34,7 @@ import { PaymentService } from '@/services/paymentService';
 import { useToast } from '@/components/ui/toast';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
 
-export default function EventDetailPage() {
+function EventDetailContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -635,5 +635,13 @@ export default function EventDetailPage() {
         message="Mendaftarkan event..."
       />
     </div>
+  );
+}
+
+export default function EventDetailPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <EventDetailContent />
+    </Suspense>
   );
 }

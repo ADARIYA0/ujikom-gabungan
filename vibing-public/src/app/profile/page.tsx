@@ -819,7 +819,7 @@ export default function ProfilePage() {
                               <div className="flex flex-col gap-2 md:justify-center">
                                 {payment.event && (
                                   <Button
-                                    onClick={() => router.push(`/events/${payment.event.slug}`)}
+                                    onClick={() => router.push(`/events/${payment.event?.slug}`)}
                                     variant="outline"
                                     className="w-full md:w-auto"
                                   >
